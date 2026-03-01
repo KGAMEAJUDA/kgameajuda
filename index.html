@@ -1,0 +1,6494 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KgameOS</title>
+  <style>
+    :root{
+      --kg-red:#ed0a22;
+      --taskbar-h:48px;
+    }
+
+    *{box-sizing:border-box;margin:0;padding:0;user-select:none;}
+    html,body{width:100%;height:100%;overflow:hidden;font-family:Segoe UI, Arial, sans-serif;background:#000;}
+
+/* ===== BOOT SCREEN ===== */
+
+#boot-screen{
+  position:fixed;
+  inset:0;
+  background:#000;
+  z-index:99999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-family:Segoe UI, monospace;
+  color:#fff;
+}
+
+.boot-container{
+  text-align:center;
+  width:400px;
+}
+
+.boot-logo{
+  font-size:42px;
+  margin-bottom:30px;
+  text-shadow:0 0 20px rgba(255,0,0,.6);
+}
+
+.boot-status{
+  font-size:13px;
+  margin-bottom:12px;
+  opacity:.8;
+}
+
+.boot-bar{
+  width:100%;
+  height:8px;
+  background:#111;
+  border-radius:6px;
+  overflow:hidden;
+}
+
+.boot-progress{
+  width:0%;
+  height:100%;
+  background:linear-gradient(90deg,#ff2a2a,#5a0000);
+  transition:width .2s linear;
+}
+.boot-tip{
+  margin-top:14px;
+  font-size:12px;
+  opacity:.75;
+  letter-spacing:.2px;
+}
+.boot-tip b{ opacity:1; }
+
+/* ===== SHUTDOWN SCREEN ===== */
+#shutdown-screen{
+  position:fixed;
+  inset:0;
+  background:#000;
+  z-index:1000000;  /* acima de tudo */
+  display:none;    /* começa escondido */
+  align-items:center;
+  justify-content:center;
+  font-family:Segoe UI, monospace;
+  color:#fff;
+}
+
+
+
+/* =========================
+   CRT EFFECT (GLOBAL)
+   ========================= */
+
+/* =========================
+   REAL CRT EFFECT (GLOBAL)
+========================= */
+
+body.crt-on{
+  background:#000;
+  overflow:hidden;
+}
+
+/* distorção/curvatura no "monitor" (desktop inteiro) */
+body.crt-on #desktop{
+  transform:
+    perspective(900px)
+    scale(1.02)
+    rotateX(.4deg);
+  transform-origin:center;
+}
+
+/* scanlines */
+body.crt-on::before{
+  content:'';
+  position:fixed;
+  inset:-20px;
+  pointer-events:none;
+  z-index:999997;
+
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.04) 0px,
+      rgba(255,255,255,.04) 1px,
+      transparent 3px,
+      transparent 6px
+    );
+
+  mix-blend-mode:overlay;
+}
+
+/* vinheta mais forte + “barrel” fake (escurece bordas) */
+body.crt-on::after{
+  content:'';
+  position:fixed;
+  inset:-60px;
+  pointer-events:none;
+  z-index:999996;
+
+  background:
+    radial-gradient(ellipse at center,
+      rgba(0,0,0,0) 0%,
+      rgba(0,0,0,.22) 55%,
+      rgba(0,0,0,.58) 100%
+    );
+
+  transform: scaleX(1.08) scaleY(1.03);
+}
+
+/* sombras de curvatura nas laterais (o “vidro” do tubo) */
+body.crt-on #desktop::before,
+body.crt-on #desktop::after{
+  content:'';
+  position:absolute;
+  top:0;
+  bottom:0;
+  width:90px;
+  pointer-events:none;
+  z-index:999998;
+}
+
+body.crt-on #desktop::before{
+  left:0;
+  background:linear-gradient(90deg, rgba(0,0,0,.62), transparent);
+}
+
+body.crt-on #desktop::after{
+  right:0;
+  background:linear-gradient(-90deg, rgba(0,0,0,.62), transparent);
+}
+
+
+#desktop{
+  position:relative;
+  width:100%;
+  height:100%;
+
+   display:grid;
+
+  align-content:start;
+  justify-content:start;
+  padding:20px;
+
+  background: url('kgameosbg169.png') center center / cover no-repeat, #000;
+}
+
+/* HITBOX invisível (fica por cima do wallpaper e recebe clique) */
+#animeHitbox{
+  position:absolute;
+  z-index:10;
+  background:transparent;
+  pointer-events:auto;
+}
+
+/* Modo DEBUG: aperte F8 para ver/ocultar */
+#animeHitbox.debug{
+  outline:2px solid rgba(120,180,255,.95);
+  background:rgba(120,180,255,.18);
+  border-radius:14px;
+}
+.desktop-icon{
+  position:absolute;
+ z-index: 20;      
+}
+
+
+
+/* ===== Desktop selection box ===== */
+#selectionBox{
+  position:fixed;
+  border:1px solid #6fb6ff;
+  background:rgba(120,180,255,.25);
+  box-shadow:0 0 12px rgba(120,180,255,.45);
+  pointer-events:none;
+  z-index:50000;
+  border-radius:4px;
+}
+
+
+/* =========================
+   16:10 (ex: 1680x1050)
+   ========================= */
+@media (min-aspect-ratio: 8/5) and (max-aspect-ratio: 17/10){
+  #desktop{
+    background-image: url('kgameosbg1610.png');
+  }
+}
+
+/* =========================
+   4:3 e similares
+   ========================= */
+@media (max-aspect-ratio: 5/4){
+  #desktop{
+    background-image: url('kgameosbg43.png');
+  }
+}
+#task-clock{
+  margin-left:auto;
+  padding:6px 12px;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:flex-end;
+
+  font-size:12px;
+  line-height:1.1;
+  letter-spacing:1px;
+
+  color:white;
+  opacity:.9;
+
+  text-shadow:0 2px 6px rgba(0,0,0,.8);
+
+  border-radius:10px;
+  cursor:pointer;
+
+  transition:
+    background .15s ease,
+    box-shadow .15s ease,
+    transform .1s ease;
+}
+#task-clock:hover{
+  background: linear-gradient(
+    180deg,
+    rgba(255,255,255,.15),
+    rgba(0,0,0,.25)
+  );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 6px 14px rgba(0,0,0,.4);
+
+  transform: translateY(-1px);
+}
+
+#task-clock:active{
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 6px rgba(0,0,0,.6);
+}
+.clock-btn{
+  cursor:pointer;
+  padding:6px 10px;
+  border-radius:8px;
+  transition:.15s;
+}
+
+.clock-btn:hover{
+  background:rgba(255,255,255,.08);
+}
+
+/* ===== Tray button (volume / wifi / etc) ===== */
+.tray-btn{
+  width:40px;
+  height:40px;
+  margin-right:6px;
+  border:0;
+  border-radius:10px;
+  cursor:pointer;
+  display:grid;
+  place-items:center;
+
+  appearance:none;
+  -webkit-appearance:none;
+  background: linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,0,0,.22));
+  border:1px solid rgba(255,255,255,.16);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 6px 14px rgba(0,0,0,.35);
+
+  color:#fff; /* ícone branco via currentColor */
+}
+
+.tray-btn:hover{
+  background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(0,0,0,.26));
+}
+.tray-btn:active{
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 6px rgba(0,0,0,.45);
+}
+
+/* SVG sempre branco (sem “escurecer”) */
+.vol-svg{
+  width:22px;
+  height:22px;
+  color:#fff !important;
+  opacity:1 !important;
+  filter:none !important;
+}
+.vol-svg path{ filter:none !important; }
+
+#task-wifi-popup{
+  position:fixed;
+  bottom:calc(var(--taskbar-h) + 10px);
+
+  width:240px;
+  padding:10px;
+
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.18), transparent 45%),
+    linear-gradient(180deg, rgba(120,0,0,.90), rgba(20,0,0,.95));
+
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.18);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 20px 50px rgba(0,0,0,.8);
+
+  z-index:40000;
+
+  /* 🔥 ANIMAÇÃO */
+  opacity:0;
+  transform: translateY(15px) scale(.97);
+  pointer-events:none;
+  visibility:hidden;
+
+  transition:
+    opacity .3s cubic-bezier(.22,1,.36,1),
+    transform .3s cubic-bezier(.22,1,.36,1);
+}
+#task-wifi-popup.open{
+  opacity:1;
+  transform: translateY(0) scale(1);
+  pointer-events:auto;
+  visibility:visible;
+}
+
+#task-wifi-popup img{
+  width:100%;
+  height:auto;
+  display:block;
+  border-radius:10px;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.10);
+}
+/* ===== Popup Volume (estilo do calendário) ===== */
+#task-volume-popup{
+  position:fixed;
+  bottom:calc(var(--taskbar-h) + 10px);
+
+  width:90px;
+  padding:12px;
+
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.18), transparent 45%),
+    linear-gradient(180deg, rgba(120,0,0,.90), rgba(20,0,0,.95));
+
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.18);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 20px 50px rgba(0,0,0,.8);
+
+  z-index:40000;
+
+  /* ✨ ANIMAÇÃO SUAVE */
+  opacity:0;
+  transform: translateY(15px) scale(.97);
+  pointer-events:none;
+  visibility:hidden;
+
+  transition:
+    opacity .3s cubic-bezier(.22,1,.36,1),
+    transform .3s cubic-bezier(.22,1,.36,1);
+}
+#task-volume-popup.open{
+  opacity:1;
+  transform: translateY(0) scale(1);
+  pointer-events:auto;
+  visibility:visible;
+}
+
+.vol-top, .vol-bottom{
+  display:flex;
+  justify-content:center;
+}
+.vol-top{ margin-bottom:10px; }
+.vol-bottom{ margin-top:10px; opacity:.95; }
+
+/* ===== Slider vertical BRANCO ===== */
+.vol-mid{
+  height:150px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+#task-volume-slider{
+  width:150px;              /* vira altura depois do rotate */
+  transform: rotate(-90deg);
+  background:transparent;
+  cursor:pointer;
+
+  accent-color:#fff;
+  -webkit-appearance:none;
+  appearance:none;
+
+  filter:none !important;
+  outline:none;
+}
+
+/* WebKit */
+#task-volume-slider::-webkit-slider-runnable-track{
+  height:6px;
+  border-radius:999px;
+  background:#fff !important;
+  border:1px solid rgba(255,255,255,.22);
+}
+#task-volume-slider::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:16px;
+  height:24px;
+  border-radius:8px;
+  background:#fff !important;
+  border:1px solid rgba(255,255,255,.65);
+  box-shadow: 0 0 12px rgba(255,255,255,.20);
+  margin-top:-10px;
+}
+
+/* Firefox */
+#task-volume-slider::-moz-range-track{
+  height:6px;
+  border-radius:999px;
+  background:#fff !important;
+  border:1px solid rgba(255,255,255,.22);
+}
+#task-volume-slider::-moz-range-thumb{
+  width:16px;
+  height:24px;
+  border-radius:8px;
+  background:#fff !important;
+  border:1px solid rgba(255,255,255,.65);
+  box-shadow: 0 0 12px rgba(255,255,255,.20);
+}
+/* calendário */
+
+#task-calendar{
+  position:absolute;
+  right:10px;
+  bottom:calc(var(--taskbar-h) + 10px);
+
+  width:260px;
+  padding:12px;
+
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.18), transparent 45%),
+    linear-gradient(180deg, rgba(120,0,0,.9), rgba(20,0,0,.95));
+
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,.18);
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 20px 50px rgba(0,0,0,.8);
+
+  color:white;
+  font-size:13px;
+
+  z-index:40000;
+
+  /* ✨ ANIMAÇÃO SUAVE */
+  opacity:0;
+  transform: translateY(20px) scale(.97);
+  pointer-events:none;
+  visibility:hidden;
+
+  transition:
+    opacity .35s cubic-bezier(.22,1,.36,1),
+    transform .35s cubic-bezier(.22,1,.36,1);
+}
+
+#task-calendar.open{
+  opacity:1;
+  transform: translateY(0) scale(1);
+  pointer-events:auto;
+  visibility:visible;
+}
+
+.calendar-grid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+  margin-top:10px;
+  text-align:center;
+}
+
+.calendar-day{
+  opacity:.6;
+  font-size:11px;
+}
+
+.calendar-cell{
+  padding:6px 0;
+  border-radius:6px;
+}
+
+.calendar-today{
+  background:#ed0a22;
+  box-shadow:0 0 10px rgba(237,10,34,.7);
+}
+
+    /* Taskbar */
+    #taskbar{
+      position:absolute;
+      left:0;
+      bottom:0;
+      width:100%;
+      height:var(--taskbar-h);
+      display:flex;
+      align-items:center;
+      padding:0 8px;
+      z-index:10000;
+      background: linear-gradient(180deg, #6b0000, #120000);
+      border-top:1px solid rgba(255,255,255,.12);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.18), inset 0 -1px 0 rgba(0,0,0,.7);
+    }
+
+    #start-button{
+      width:44px;
+      height:44px;
+      border-radius:50%;
+      cursor:pointer;
+      background: url('rodopio leve.gif') center center / cover no-repeat;
+      box-shadow: inset 0 0 6px rgba(255,255,255,0.6), 0 0 8px rgba(0,0,0,0.6);
+    }
+
+    #task-items{display:flex;gap:6px;margin-left:10px;}
+    .task-item{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      padding:6px 10px;
+      background: linear-gradient(180deg,#aa0000,#440000);
+      color:#fff;
+      border-radius:8px;
+      cursor:pointer;
+      font-size:12px;
+      border:1px solid rgba(255,255,255,.12);
+    }
+    .task-item.active{
+      box-shadow:0 0 14px rgba(237,10,34,.35);
+      border-color: rgba(237,10,34,.45);
+      background: linear-gradient(180deg,#c40000,#4a0000);
+    }
+    .task-item-icon{
+      width:18px;height:18px;border-radius:4px;
+      background: radial-gradient(circle at top left,#ff7777,#5a0000);
+      display:flex;align-items:center;justify-content:center;
+      font-size:11px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+    }
+#task-spacer{
+  flex:1;
+}
+#task-nowplaying{
+  display:none;
+  align-items:center;
+  gap:8px;
+
+  max-width:360px;
+  height:34px;
+
+  padding:0 12px;
+  margin-right:10px; /* espaço antes do relógio */
+
+  border-radius:10px;
+  color:#fff;
+  font-size:12px;
+  font-weight:800;
+
+  border:1px solid rgba(255,255,255,.14);
+  background: linear-gradient(180deg, rgba(255,255,255,.18), rgba(0,0,0,.18));
+}
+
+#task-nowplaying.active{
+  display:flex;
+}
+
+#task-nowplaying .np-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background: var(--kg-red);
+  box-shadow: 0 0 10px rgba(237,10,34,.8);
+  flex:0 0 auto;
+}
+
+#task-nowplaying .np-text{
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+    /* Desktop icon */
+    #arkadeIcon{
+     cursor:pointer;
+      width:76px;
+      text-align:center;
+    }
+    #arkadeIcon .ico{
+      width:48px;height:48px;border-radius:10px;
+      margin:0 auto;
+      background:linear-gradient(180deg,#ff4444,#5a0000);
+      display:flex;align-items:center;justify-content:center;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 18px rgba(0,0,0,.55);
+      font-size:24px;
+    }
+    #arkadeIcon .lbl{margin-top:6px;font-size:12px;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.85)}
+
+#orkutIcon{
+    cursor:pointer;
+  width:76px;
+  text-align:center;
+}
+
+#orkutIcon .ico{
+  width:48px;
+  height:48px;
+  border-radius:10px;
+  margin:0 auto;
+  background:linear-gradient(180deg,#ff4444,#5a0000); /* mesmo estilo do Jogos/Arquivos */
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 18px rgba(0,0,0,.55);
+  font-size:24px;
+}
+
+#orkutIcon .lbl{
+  margin-top:6px;
+  font-size:12px;
+  color:#fff;
+  text-shadow:0 2px 6px rgba(0,0,0,.85);
+}
+
+#chatIcon{
+  cursor:pointer;
+  width:76px;
+  text-align:center;
+}
+
+#chatIcon .ico{
+  width:48px;
+  height:48px;
+  border-radius:10px;
+  margin:0 auto;
+  background:linear-gradient(180deg,#ff4444,#5a0000);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 18px rgba(0,0,0,.55);
+  font-size:24px;
+}
+
+#chatIcon .lbl{
+  margin-top:6px;
+  font-size:12px;
+  color:#fff;
+  text-shadow:0 2px 6px rgba(0,0,0,.85);
+}
+
+
+#filesIcon{
+   cursor: pointer;
+  width: 76px;
+  text-align: center;
+}
+
+#filesIcon .ico {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  margin: 0 auto;
+  background:linear-gradient(180deg,#ff4444,#5a0000);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 10px 18px rgba(0,0,0,.55);
+  font-size: 24px;
+}
+
+#filesIcon .lbl {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #fff;
+  text-shadow: 0 2px 6px rgba(0,0,0,.85);
+}
+
+.desktop-icon.selected .ico {
+  outline: 2px solid #4aa3ff;
+  box-shadow: 0 0 12px rgba(80,160,255,.8);
+}
+
+.desktop-icon.selected .lbl {
+  background: rgba(80,160,255,.35);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.desktop-icon.dragging {
+  opacity: 0.7;
+  /* NÃO desative pointer-events aqui, senão mata click/dblclick */
+}
+
+
+
+
+    /* Windows */
+    .window{
+      position:absolute;
+      background:#111;
+      border-radius:10px;
+      overflow:hidden;
+      box-shadow:0 18px 40px rgba(0,0,0,0.65);
+      border:1px solid rgba(255,255,255,.10);
+    }
+/* =========================
+   MUSIC WINDOW – AGGRESSIVE AERO
+   ========================= */
+
+.window[data-app-id="musicApp"]{
+  isolation:isolate;
+  position:absolute;
+}
+
+
+/* sweep energético */
+.window[data-app-id="musicApp"]::before{
+  content:'';
+  position:absolute;
+  inset:-2px;
+  border-radius:inherit;
+
+  background:
+    linear-gradient(
+      120deg,
+      transparent 20%,
+      rgba(255,255,255,.35) 35%,
+      rgba(120,210,255,.85) 45%,
+      rgba(255,255,255,.35) 55%,
+      transparent 70%
+    );
+
+  filter:blur(10px);
+  opacity:.7;
+  z-index:-1;
+
+  animation:musicSweep 4s linear infinite;
+}
+
+/* borda pulsante */
+.window[data-app-id="musicApp"]::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.35),
+    0 0 26px rgba(120,210,255,.65),
+    0 0 60px rgba(0,140,255,.35);
+
+  animation:musicPulse 2.6s ease-in-out infinite alternate;
+}
+
+@keyframes musicSweep{
+  from{ background-position:-200% 0; }
+  to{ background-position:200% 0; }
+}
+
+@keyframes musicPulse{
+  from{
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.2),
+      0 0 18px rgba(120,210,255,.4),
+      0 0 40px rgba(0,140,255,.2);
+  }
+  to{
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.45),
+      0 0 36px rgba(120,210,255,.9),
+      0 0 90px rgba(0,140,255,.55);
+  }
+}
+
+/* header mais molhado */
+.window[data-app-id="musicApp"] .window-header{
+  backdrop-filter: blur(8px) saturate(160%);
+}
+
+/* reflexo interno */
+.window[data-app-id="musicApp"] .window-content::before{
+  content:'';
+  position:absolute;
+  inset:0;
+
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,.35), transparent 45%);
+
+  pointer-events:none;
+}
+
+
+    .window-header{
+      height:36px;
+      background:
+        radial-gradient(circle at top left, rgba(255,255,255,.18), transparent 40%),
+        linear-gradient(180deg, #5a0000, #140000);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 10px;
+      cursor:move;
+      border-bottom:1px solid rgba(255,255,255,.12);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+    }
+
+    .window-title{
+      color:#fff;font-size:13px;opacity:.95;
+      display:flex;align-items:center;gap:8px;
+      text-shadow:0 2px 6px rgba(0,0,0,.8);
+    }
+    .window-title .win-icon{
+      width:18px;height:18px;border-radius:5px;
+      background:radial-gradient(circle at top left,#ff7777,#5a0000);
+      display:flex;align-items:center;justify-content:center;
+      font-size:12px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 6px rgba(0,0,0,.6);
+    }
+
+    .window{
+      position:absolute;
+      background:#111;
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 18px 40px rgba(0,0,0,0.65), 0 0 22px rgba(237,10,34,.25);
+      border:1px solid rgba(255,255,255,.14);
+    }
+
+    .window-title{color:#fff;font-size:13px;opacity:.95;}
+    .window-controls{display:flex;gap:8px; padding-right:2px;}
+
+    .window-btn{
+      width:18px;height:18px;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;
+      cursor:pointer;
+      background: radial-gradient(circle at top left,#ffb3b3,#b00000 55%,#5a0000);
+      box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.55),
+        inset 0 -1px 0 rgba(0,0,0,.6),
+        0 2px 6px rgba(0,0,0,.6);
+      transition: transform .12s ease, filter .15s ease, box-shadow .15s ease;
+      position:relative;
+    }
+    .window-btn.min{background:radial-gradient(circle at top left,#ffd9a3,#ff9f00 55%,#8a3b00)}
+    .window-btn.max{background:radial-gradient(circle at top left,#c6ffcf,#18b94a 55%,#045a22)}
+    .window-btn.close{background:radial-gradient(circle at top left,#ffb3b3,#ff2a2a 55%,#6b0000)}
+
+    .window-btn:hover{transform:scale(1.15)}
+    .window-btn.min:hover{box-shadow:0 0 10px rgba(255,180,60,.7), inset 0 1px 0 rgba(255,255,255,.7)}
+    .window-btn.max:hover{box-shadow:0 0 10px rgba(80,255,150,.7), inset 0 1px 0 rgba(255,255,255,.7)}
+    .window-btn.close:hover{box-shadow:0 0 12px rgba(255,60,60,.8), inset 0 1px 0 rgba(255,255,255,.7)}
+    .window-btn:active{transform:scale(.9); filter:brightness(.9)}
+
+    /* min: dash */
+    .window-btn.min::after{
+      content:'';
+      width:10px;height:2px;
+      background:#200;
+      border-radius:2px;
+    }
+    /* max: centered square */
+    .window-btn.max::after{
+      content:'';
+      width:8px;height:8px;
+      border:2px solid #200;
+      border-radius:2px;
+      position:absolute;
+      inset:0;
+      margin:auto;
+    }
+    /* close: X */
+    .window-btn.close::before,
+    .window-btn.close::after{
+      content:'';
+      position:absolute;
+      width:10px;height:2px;
+      background:#200;
+      border-radius:2px;
+    }
+    .window-btn.close::before{transform:rotate(45deg)}
+    .window-btn.close::after{transform:rotate(-45deg)}
+
+   .window-content{
+  width:100%;
+  height:calc(100% - 32px);
+
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.02)),
+    radial-gradient(circle at top right, rgba(255,255,255,.25), transparent 55%),
+    linear-gradient(180deg, rgba(120,0,0,.85), rgba(20,0,0,.92));
+
+  color:#fff;
+  padding:16px;
+  position:relative;
+  overflow:hidden;
+}
+
+.window[data-app-id="musicApp"] .window-content{
+  padding:0 !important;
+}
+
+    .window-content.playing{display:flex;align-items:center;justify-content:center;padding:0;}
+
+    /* fullscreen: remove inner padding so game can use tudo */
+    .window.maximized .window-content{
+      padding:0;
+    }
+
+    .window.minimized{display:none}
+    .window.maximized{
+      left:0!important;
+      top:0!important;
+      width:100%!important;
+      height:calc(100% - var(--taskbar-h))!important;
+      border-radius:0;
+    }
+
+    /* Start Menu (Win7/Frutiger-ish) */
+ #start-menu{
+  position:absolute;
+  bottom:var(--taskbar-h);
+  left:8px;
+
+  width:380px;
+  height:440px;
+
+  z-index:30000;
+
+  /* VISIBILIDADE CONTROLADA POR ANIMAÇÃO */
+  opacity:0;
+  transform: translateY(30px) scale(.96);
+  filter: blur(6px);
+  pointer-events:none;
+
+  visibility:hidden;
+
+  transition:
+    opacity .35s cubic-bezier(.22,1,.36,1),
+    transform .35s cubic-bezier(.22,1,.36,1),
+    filter .35s ease;
+
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.18), transparent 45%),
+    linear-gradient(180deg, rgba(120,0,0,.85), rgba(20,0,0,.92));
+
+  backdrop-filter: blur(14px) saturate(160%);
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.22);
+
+  overflow:hidden;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.35),
+    inset 0 -1px 0 rgba(0,0,0,.6),
+    0 0 40px rgba(237,10,34,.45),
+    0 40px 80px rgba(0,0,0,.9);
+}
+   #start-menu.open{
+  opacity:1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  pointer-events:auto;
+  visibility:visible;
+}
+
+    @keyframes startGlow{
+      from{ box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(0,0,0,.6), 0 0 18px rgba(237,10,34,.25), 0 30px 70px rgba(0,0,0,.85); }
+      to{ box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -1px 0 rgba(0,0,0,.6), 0 0 38px rgba(237,10,34,.55), 0 30px 70px rgba(0,0,0,.85); }
+    }
+
+    .start-inner{display:grid;grid-template-columns:1fr 2fr;height:100%;}
+ .start-left{
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+  background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.55));
+}
+.start-left-bottom{
+  margin-top:auto;
+  display:flex;
+  flex-direction:row;
+  justify-content:center;
+  gap:10px;
+}
+.start-left-bottom .start-item{
+  width:42px;
+  height:42px;
+  padding:0;
+  border-radius:8px;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  font-size:20px;   /* tamanho do emoji */
+}
+
+/* remove qualquer texto caso exista */
+.start-left-bottom .start-item span{
+  display:none;
+}
+
+
+.start-right{
+  padding:14px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.02)),
+    radial-gradient(circle at top right, rgba(255,255,255,.25), transparent 55%);
+}
+
+    .start-user{
+ padding:18px 12px;
+  justify-content:center;
+  display:flex;
+  align-items:center;
+  gap:10px;
+
+  /* espaço abaixo do avatar */
+  margin-bottom:20px;
+}
+
+
+.start-avatar{
+  width:72px;
+  height:72px;
+  border-radius:12px;
+
+  background:#3a3a3a;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  box-shadow:
+    inset 0 -2px 4px rgba(0,0,0,.35),
+    0 6px 14px rgba(0,0,0,.6);
+}
+
+.avatar-svg{
+  width:80%;
+  height:80%;
+  fill:#ed0a22;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.4));
+}
+
+
+
+
+   .start-item{
+ margin-bottom:10px; /* espaço entre os botões */
+    display:flex;
+    align-items:center;
+    gap:10px;
+  white-space:nowrap;
+
+    padding:10px 12px;
+    border-radius:10px;
+
+    cursor:pointer;
+
+    font-size:15px;
+    color:#fff;
+opacity:0;
+transform: translateY(10px);
+transition: 
+  opacity .3s ease,
+  transform .3s ease;
+    background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
+
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,.12),
+        0 4px 10px rgba(0,0,0,.4);
+
+    transition:.2s ease;
+}
+
+.start-item:hover{
+    background:linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,.05));
+    transform:translateX(2px);
+}
+
+.start-item::first-letter{
+    font-size:18px;
+}
+
+    .start-power{
+      margin-top:auto;padding:10px;text-align:center;border-radius:12px;
+      background:linear-gradient(180deg, rgba(255,255,255,.12), rgba(0,0,0,.35));
+      cursor:pointer;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    .start-power:hover{background:linear-gradient(180deg, rgba(255,255,255,.25), rgba(237,10,34,.35));box-shadow:0 0 14px rgba(237,10,34,.45);}
+
+    /* Arkade tiles */
+    .arkade-grid{
+      display:grid;
+      grid-template-columns:repeat(3, minmax(160px, 1fr));
+      gap:18px;
+      align-content:start;
+    }
+    .game-tile{
+      height:120px;
+      border-radius:14px;
+      background: radial-gradient(circle at top left, rgba(255,255,255,0.18), transparent 55%), linear-gradient(180deg, rgba(20,20,20,0.92), rgba(8,8,8,0.92));
+      border:1px solid rgba(255,255,255,0.16);
+      box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35), 0 10px 24px rgba(0,0,0,0.65), 0 0 6px rgba(237,10,34,0.18);
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:10px;
+      cursor:pointer;
+      transition: transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+      animation: tileGlow 4s ease-in-out infinite alternate;
+    }
+    @keyframes tileGlow{
+      from{ box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35), 0 10px 24px rgba(0,0,0,0.65), 0 0 6px rgba(237,10,34,0.15); }
+      to{ box-shadow: inset 0 0 0 1px rgba(0,0,0,0.35), 0 12px 28px rgba(0,0,0,0.75), 0 0 18px rgba(237,10,34,0.35); }
+    }
+    .game-tile:hover{
+      transform: translateY(-3px);
+      border-color: rgba(237,10,34,0.55);
+      box-shadow: inset 0 0 0 1px rgba(237,10,34,0.25), 0 16px 34px rgba(0,0,0,0.8);
+    }
+    .game-icon{width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--kg-red);filter: drop-shadow(0 6px 10px rgba(0,0,0,0.65));}
+    .game-icon svg{width:44px;height:44px;display:block;}
+    .game-title{font-size:12px;font-weight:900;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.92)}
+
+    /* Game menu overlay (layout like your screenshots) */
+    .game-screen{position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;}
+    .game-screen-inner{width:min(520px, 92%);display:flex;flex-direction:column;align-items:center;gap:16px;}
+    .game-hero-title{font-size:48px;font-weight:900;font-style:italic;letter-spacing:3px;color:var(--kg-red);line-height:1;}
+    .game-hero-sub{margin-top:-6px;font-size:11px;letter-spacing:6px;text-transform:uppercase;color:#7a8a9a;}
+    .game-pill{margin-top:10px;padding:16px 56px;border-radius:999px;background:var(--kg-red);border:none;color:#fff;font-weight:900;letter-spacing:3px;cursor:pointer;box-shadow:0 0 25px rgba(237,10,34,.4);}    
+    .game-controls-hint{
+  font-family: Consolas, monospace;
+  font-size:12px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+
+  opacity:.95;
+  margin-top:10px;
+  padding:10px 28px;
+  border-radius:18px;
+
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.12), transparent 45%),
+    linear-gradient(180deg,#101010,#030303);
+
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.12),
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 0 18px rgba(237,10,34,.25),
+    0 8px 20px rgba(0,0,0,.7);
+
+  color:#e6e6e6;
+}
+
+    .game-back{margin-top:10px;background:none;border:1px solid #333;color:#aaa;padding:8px 18px;border-radius:18px;cursor:pointer}
+    .game-over{display:none;flex-direction:column;gap:12px;margin-top:20px;align-items:center}
+    .game-over-title{font-weight:900;letter-spacing:3px}
+
+    /* Arcade stage (centra e escala corretamente em janela e tela cheia) */
+    #game-stage{display:none;}
+    .arcade-wrap{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:0px;}
+
+    .arcade-frame{
+      position:relative;
+      width:100%;
+      height:auto;
+      max-height:100%;
+
+      aspect-ratio: 16 / 10;
+      border-radius:0px;
+      background: radial-gradient(circle at top left, rgba(255,255,255,.12), transparent 55%), linear-gradient(180deg,#0b0b0b,#020202);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,.06), 0 18px 50px rgba(0,0,0,.75);
+      overflow:hidden;
+    }
+
+    /* “zoom” no fullscreen: usa mais área */
+    .window.maximized .arcade-wrap{padding:18px;}
+    .window.maximized .arcade-frame{
+      transform: scale(1.03);
+      transform-origin:center;
+    }
+
+    /* Arkade menu: dá respiro no topo em tela cheia */
+   .window.maximized #arkade-menu{
+  margin-top:22px;
+}
+
+/* ===== CRT SHUTDOWN ===== */
+
+#crt-off{
+  position:fixed;
+  inset:0;
+  background:#000;
+  pointer-events:none;
+  opacity:0;
+  z-index:999999;
+  transition:opacity .4s ease;
+}
+
+#crt-off.active{
+  opacity:1;
+}
+
+#crt-off::before{
+  content:'';
+  position:absolute;
+  inset:0;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(255,255,255,.04) 0px,
+      rgba(255,255,255,.04) 1px,
+      transparent 2px,
+      transparent 4px
+    );
+  mix-blend-mode:overlay;
+}
+
+#crt-line{
+  position:absolute;
+  left:0;
+  top:50%;
+  width:100%;
+  height:2px;
+  background:white;
+  opacity:0;
+}
+/* aviso F11 */
+
+#f11-hint{
+  position:fixed;
+  left:50%;
+  top:37%;
+  transform:translate(-50%,-50%) scale(.95);
+  padding:14px 22px;
+  border-radius:12px;
+
+  background:rgba(0,0,0,.75);
+  color:#fff;
+  font-size:14px;
+  letter-spacing:.3px;
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.15),
+    0 12px 30px rgba(0,0,0,.6);
+
+  opacity:0;
+  pointer-events:none;
+  z-index:999999;
+
+  transition:opacity .35s ease, transform .35s ease;
+}
+
+#f11-hint.show{
+  opacity:1;
+  transform:translate(-50%,-50%) scale(1);
+}
+
+/* ===== LOCK SCREEN ===== */
+
+#lock-screen{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.85);
+  backdrop-filter: blur(6px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .4s ease;
+  z-index:99998;
+}
+
+#lock-screen.active{
+  opacity:1;
+  pointer-events:auto;
+}
+
+.lock-box{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:10px;
+  color:white;
+  font-size:14px;
+  letter-spacing:.3px;
+}
+
+.lock-avatar{
+ width:72px;
+  height:72px;
+  border-radius:12px;
+
+  background:#3a3a3a;
+
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  box-shadow:
+    inset 0 -2px 4px rgba(0,0,0,.35),
+    0 6px 14px rgba(0,0,0,.6);
+
+}
+
+.lock-text{
+  font-size:15px;
+  opacity:.9;
+}
+
+.lock-sub{
+  font-size:12px;
+  opacity:.6;
+}
+/* ===== CHAT APP ===== */
+.window[data-app-id="chat"] .window-content{
+  padding:0 !important;
+  overflow:hidden;
+  background:#000;
+}
+
+/* faz o chatango ocupar tudo */
+#cid0020000432572576071{
+  width:100% !important;
+  height:100% !important;
+}
+
+
+/* =========================
+   GAME WINDOWS CLEAN MODE
+   ========================= */
+
+/* remove só a linha do header */
+.game-window .window-header{
+  border-bottom:none !important;
+}
+
+/* comportamento NORMAL (menu Arkade) */
+.game-window .window-content{
+  padding:16px;
+}
+
+/* somente quando está jogando */
+.game-window .window-content.playing{
+  padding:0 !important;
+}
+
+/* só durante gameplay cola tudo */
+.game-window .window-content.playing .arcade-wrap{
+  inset:0;
+  padding:0;
+}
+
+/* remove sombras intermediárias só no jogo */
+.game-window .window-content.playing .arcade-frame{
+  box-shadow:none !important;
+}
+
+/* canvas colado */
+.game-window .window-content.playing canvas{
+  display:block;
+}
+.wifi-status{
+  text-align:center;
+  font-size:14px;
+  font-weight:600;
+  color:#fff;
+  margin-bottom:10px;
+  padding:6px 10px;
+  border-radius:8px;
+
+  background:linear-gradient(
+    180deg,
+    rgba(255,255,255,.12),
+    rgba(0,0,0,.25)
+  );
+
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.2),
+    0 4px 10px rgba(0,0,0,.4);
+
+  text-shadow:0 2px 6px rgba(0,0,0,.8);
+}
+.wifi-status{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+
+  font-size:14px;
+  font-weight:600;
+  color:#fff;
+  margin-bottom:12px;
+  letter-spacing:.3px;
+
+  opacity:0;
+  animation:wifiFade .6s ease forwards;
+
+  text-shadow:
+    0 2px 6px rgba(0,0,0,.8),
+    0 0 8px rgba(255,255,255,.25);
+}
+
+/* pontinho verde */
+.wifi-dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#2cff62;
+  box-shadow:0 0 8px rgba(44,255,98,.8);
+
+  animation:wifiPulse 1.8s ease-in-out infinite;
+}
+
+/* fade-in */
+@keyframes wifiFade{
+  to{ opacity:1; }
+}
+
+/* pulso suave */
+@keyframes wifiPulse{
+  0%{
+    box-shadow:0 0 4px rgba(44,255,98,.4);
+    transform:scale(1);
+  }
+  50%{
+    box-shadow:0 0 14px rgba(44,255,98,1);
+    transform:scale(1.2);
+  }
+  100%{
+    box-shadow:0 0 4px rgba(44,255,98,.4);
+    transform:scale(1);
+  }
+}
+#start-menu.open .start-item{
+  opacity:1;
+  transform: translateY(0);
+}
+
+/* delay progressivo */
+#start-menu.open .start-item:nth-child(1){ transition-delay:.05s; }
+#start-menu.open .start-item:nth-child(2){ transition-delay:.1s; }
+#start-menu.open .start-item:nth-child(3){ transition-delay:.15s; }
+#start-menu.open .start-item:nth-child(4){ transition-delay:.2s; }
+#start-menu.open .start-item:nth-child(5){ transition-delay:.25s; }
+#start-menu.open .start-item:nth-child(6){ transition-delay:.3s; }
+#start-menu.open .start-item:nth-child(7){ transition-delay:.35s; }
+#start-menu.open .start-item:nth-child(8){ transition-delay:.4s; }
+</style>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer@1.10.1/dist/APlayer.min.css">
+<script src="https://cdn.jsdelivr.net/npm/aplayer@1.10.1/dist/APlayer.min.js"></script>
+</head>
+<body>
+
+<div id="boot-screen">
+  <div class="boot-container">
+
+    <div class="boot-logo">
+      KgameOS
+    </div>
+
+    <div class="boot-status" id="boot-status">
+      Initializing system...
+    </div>
+
+    <div class="boot-bar">
+      <div class="boot-progress" id="boot-progress"></div>
+    </div>
+    <div class="boot-tip">
+      Aperte <b>F11</b> para deixar a tela cheia e ter uma experiência mais legal
+    </div>
+  </div>
+</div>
+
+</div> <!-- fecha #boot-screen -->
+
+<!-- PASSO 1: Shutdown screen (cole aqui) -->
+<div id="shutdown-screen" style="display:none;">
+  <div class="boot-container">
+    <div class="boot-logo">KgameOS</div>
+    <div class="boot-status" id="shutdown-status">Desligando...</div>
+    <div class="boot-bar">
+      <div class="boot-progress" id="shutdown-progress"></div>
+    </div>
+  </div>
+</div>
+
+<div id="crt-off">
+  <div id="crt-line"></div>
+</div>
+
+<!-- AQUI entra o LOCK SCREEN -->
+<div id="lock-screen">
+  <div class="lock-box">
+    <div class="lock-avatar">
+ <svg viewBox="0 0 64 64" class="avatar-svg">
+  <circle cx="32" cy="21" r="16"/>
+  <path d="M6 58c0-16 52-16 52 0"/>
+</svg>
+
+</div>
+
+    <div class="lock-text">Sessão bloqueada</div>
+    <div class="lock-sub">Clique para desbloquear</div>
+  </div>
+</div>
+
+<div id="desktop">
+
+    <div id="arkadeIcon" class="desktop-icon">
+      <div class="ico">🕹️</div>
+      <div class="lbl">Jogos</div>
+    </div>
+<div id="filesIcon" class="desktop-icon">
+  <div class="ico">📁</div>
+  <div class="lbl">Arquivos</div>
+</div>
+<div id="orkutIcon" class="desktop-icon">
+  <div class="ico">⌨️</div>
+  <div class="lbl">Orkut</div>
+</div>
+<div id="chatIcon" class="desktop-icon">
+  <div class="ico">💬</div>
+  <div class="lbl">Chat</div>
+</div>
+
+
+
+
+    <!-- Start Menu -->
+    <div id="start-menu">
+      <div class="start-inner">
+        <div class="start-left">
+          <div class="start-user">
+         <div class="start-avatar">
+  <svg viewBox="0 0 64 64" class="avatar-svg">
+  <circle cx="32" cy="21" r="16"/>
+  <path d="M6 58c0-16 52-16 52 0"/>
+</svg>
+
+</div>
+
+
+          </div>
+<div class="start-item" id="start-arkade"> Jogos</div>
+<div class="start-item" id="start-settings"> Configurações</div>
+    <div class="start-item"> Ajuda</div>
+    <div class="start-item" id="start-about"> Sobre</div>
+
+
+<div class="start-left-bottom">
+  <div class="start-item start-shutdown">⏻</div>
+  <div class="start-item start-lock">🔒</div>
+</div>
+</div>
+
+       <div class="start-right">
+
+<div class="start-item" id="start-files">📁 Arquivos</div>
+<div class="start-item" id="start-notepad">📝 Bloco de notas</div>
+<div class="start-item" id="start-calc">🧮 Calculadora</div>
+<div class="start-item" id="start-paint">🎨 Paint</div>
+<div class="start-item" id="start-music">🎵 Música</div>
+<div class="start-item" id="start-orkut">⌨️ Orkut</div>
+<div class="start-item" id="start-chat">💬 Chat</div>
+
+
+
+
+
+</div>
+
+      </div>
+    </div>
+
+ <div id="taskbar">
+  <div id="start-button"></div>
+  <div id="task-items"></div>
+
+  <div id="task-spacer"></div> <!-- empurra tudo pra direita -->
+
+<div id="task-nowplaying"></div>
+<button id="task-wifi" class="tray-btn" title="Internet">
+  <svg class="vol-svg" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 18.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" fill="currentColor"></path>
+    <path d="M4.9 12.6a10.5 10.5 0 0 1 14.2 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+    <path d="M7.8 15.3a6.6 6.6 0 0 1 8.4 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+    <path d="M2.6 9.7a14 14 0 0 1 18.8 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+  </svg>
+</button>
+<button id="task-volume" class="tray-btn" title="Volume">
+  <!-- ícone branco (SVG) -->
+  <svg class="vol-svg" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M11 5 6.5 9H3v6h3.5L11 19V5z" fill="currentColor"></path>
+    <path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+    <path d="M18 6a8 8 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+  </svg>
+</button>
+
+<div id="task-clock"></div>
+</div>
+<!-- calendário -->
+<div id="task-calendar"></div>
+<!-- volume popup -->
+<div id="task-volume-popup">
+  <div class="vol-top">
+    <svg class="vol-svg" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M11 5 6.5 9H3v6h3.5L11 19V5z" fill="currentColor"></path>
+      <path d="M15.5 8.5a5 5 0 0 1 0 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path>
+    </svg>
+  </div>
+
+  <div class="vol-mid">
+    <input id="task-volume-slider" type="range" min="0" max="100" value="90" />
+  </div>
+
+  <div class="vol-bottom">
+    <svg class="vol-svg" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M11 5 6.5 9H3v6h3.5L11 19V5z" fill="currentColor"></path>
+    </svg>
+  </div>
+</div>
+<!-- wifi popup -->
+<div id="task-wifi-popup">
+  <div class="wifi-status">
+  <span class="wifi-dot"></span>
+  Você está conectado
+</div>
+  <img src="internet.webp" alt="Internet" />
+</div><div id="animeHitbox" data-nodrag="1"></div>
+  </div>
+<audio id="animeSound" src="hihihi.mp3" preload="auto"></audio>
+<script>
+  let zIndexCounter = 200;
+  let arkadeWindow = null; // garante 1 instância
+let calcWindow = null;
+
+  const windows = new Set();
+  const TASKBAR_H = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--taskbar-h')) || 46;
+
+function setGameTitle(name, icon='🕹️'){
+  if(!arkadeWindow) return;
+
+  // título SOMENTE da janela Jogos
+  const winTitle = arkadeWindow.querySelector('.window-title');
+  if(winTitle){
+    winTitle.innerHTML = `<div class="win-icon">${icon}</div><span>${name}</span>`;
+  }
+
+  // taskbar SOMENTE do item da janela Jogos
+  if(arkadeWindow._taskItem){
+    arkadeWindow._taskItem.innerHTML =
+      `<div class="task-item-icon">${icon}</div><span>${name}</span>`;
+  }
+}
+
+
+  // --------------------
+  // Util
+  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+  function bringToFront(win){
+    win.style.zIndex = ++zIndexCounter;
+    // marca ativo (estilo Windows): só o topo fica ativo
+    windows.forEach(w => setTaskActive(w, w === win));
+  }
+
+  // --------------------
+  // Global drag (evita N listeners por janela)
+  const dragState = { active:false, win:null, offsetX:0, offsetY:0 };
+
+  document.addEventListener('mousemove', (e)=>{
+    if(!dragState.active || !dragState.win) return;
+    const win = dragState.win;
+
+    let nx = e.clientX - dragState.offsetX;
+    let ny = e.clientY - dragState.offsetY;
+
+    const maxX = window.innerWidth - win.offsetWidth;
+    const maxY = (window.innerHeight - TASKBAR_H) - win.offsetHeight;
+
+    nx = clamp(nx, 0, Math.max(0, maxX));
+    ny = clamp(ny, 0, Math.max(0, maxY));
+
+    win.style.left = nx + 'px';
+    win.style.top = ny + 'px';
+  });
+
+  document.addEventListener('mouseup', ()=>{
+    dragState.active = false;
+    dragState.win = null;
+  });
+
+  // --------------------
+  // Window management
+ function openArkade(){
+  if(arkadeWindow){
+    arkadeWindow.classList.remove('minimized');
+    bringToFront(arkadeWindow);
+    return;
+  }
+
+  arkadeWindow = createWindow({
+    id: 'arkade',
+    title: 'Jogos',
+    w: 980,
+    h: 620,
+    icon: '🕹️',
+    build: buildArkadeContent
+  });
+
+  arkadeWindow.classList.add('game-window');
+
+  arkadeWindow._onClose = ()=>{
+    arkadeWindow = null;
+  };
+}
+
+
+  function createWindow({id, title, w, h, icon, build}){
+    const win = document.createElement('div');
+    win.className = 'window';
+    win.dataset.appId = id;
+    win.style.width = w + 'px';
+    win.style.height = h + 'px';
+    win.style.left = '120px';
+    win.style.top = '90px';
+
+    const header = document.createElement('div');
+    header.className = 'window-header';
+
+    const t = document.createElement('div');
+    t.className = 'window-title';
+    t.innerHTML = `<div class="win-icon">${icon || '🗔'}</div><span>${title}</span>`;
+
+    const ctrls = document.createElement('div');
+    ctrls.className = 'window-controls';
+
+    const btnMin = document.createElement('div');
+    btnMin.className = 'window-btn min';
+
+    const btnMax = document.createElement('div');
+    btnMax.className = 'window-btn max';
+
+    const btnClose = document.createElement('div');
+    btnClose.className = 'window-btn close';
+
+    ctrls.appendChild(btnMin);
+    ctrls.appendChild(btnMax);
+    ctrls.appendChild(btnClose);
+
+    header.appendChild(t);
+    header.appendChild(ctrls);
+
+    const content = document.createElement('div');
+    content.className = 'window-content';
+
+    win.appendChild(header);
+    win.appendChild(content);
+    document.getElementById('desktop').appendChild(win);
+
+    windows.add(win);
+
+    // focus
+    win.addEventListener('mousedown', ()=> bringToFront(win));
+
+    // drag
+    makeDraggable(win, header);
+
+    // controls
+    btnMin.onclick = (e)=>{ e.stopPropagation(); minimizeWindow(win); };
+    btnMax.onclick = (e)=>{ e.stopPropagation(); toggleMaximize(win); };
+    btnClose.onclick = (e)=>{ e.stopPropagation(); closeWindow(win); };
+
+    // build content
+    if(typeof build === 'function') build(content, win);
+
+    // taskbar
+    addTaskItem(win, title, icon);
+
+    // keep inside desktop
+    clampToWorkArea(win);
+    bringToFront(win);
+
+    return win;
+  }
+
+ function closeWindow(win){
+
+  if(typeof win._cleanup === 'function'){
+    try{ win._cleanup(); }catch(e){}
+  }
+
+  if(win._taskItem) win._taskItem.remove();
+
+  if(typeof win._onClose === 'function'){
+    win._onClose();
+  }
+
+  windows.delete(win);
+  win.remove();
+
+  // ativa próxima janela do topo
+  let top = null;
+  windows.forEach(w=>{
+    if(!top || (+w.style.zIndex || 0) > (+top.style.zIndex || 0)) top = w;
+  });
+
+  if(top) bringToFront(top);
+}
+
+
+  function minimizeWindow(win){
+    win.classList.add('minimized');
+    setTaskActive(win, false);
+  }
+
+  function toggleMaximize(win){
+    if(win.classList.contains('maximized')){
+      win.classList.remove('maximized');
+      if(win._restore){
+        win.style.left = win._restore.l;
+        win.style.top = win._restore.t;
+        win.style.width = win._restore.w;
+        win.style.height = win._restore.h;
+        win._restore = null;
+      }
+      clampToWorkArea(win);
+
+      if(typeof win._onLayoutChanged === 'function'){
+        requestAnimationFrame(()=> requestAnimationFrame(()=> win._onLayoutChanged('restore')));
+      }
+      return;
+    }
+
+    win._restore = { l: win.style.left, t: win.style.top, w: win.style.width, h: win.style.height };
+    win.classList.add('maximized');
+    bringToFront(win);
+
+    if(typeof win._onLayoutChanged === 'function'){
+      requestAnimationFrame(()=> requestAnimationFrame(()=> win._onLayoutChanged('maximize')));
+    }
+  }
+
+  function addTaskItem(win, title, icon){
+    const taskItems = document.getElementById('task-items');
+    const item = document.createElement('div');
+    item.className = 'task-item';
+    item.innerHTML = `<div class="task-item-icon">${icon || '🗔'}</div><span>${title}</span>`;
+
+    item.onclick = ()=>{
+      const isMin = win.classList.contains('minimized');
+      const isActive = win._taskItem?.classList.contains('active');
+
+      if(isMin){
+        win.classList.remove('minimized');
+        bringToFront(win);
+        return;
+      }
+
+      // comportamento Windows: se não estiver ativo, ativa; se ativo, minimiza
+      if(!isActive){
+        bringToFront(win);
+      } else {
+        minimizeWindow(win);
+      }
+    };
+
+    win._taskItem = item;
+    taskItems.appendChild(item);
+  }
+
+  function setTaskActive(win, active){
+    if(!win._taskItem) return;
+    win._taskItem.classList.toggle('active', !!active);
+  }
+
+  function clampToWorkArea(win){
+    if(win.classList.contains('maximized')) return;
+    const maxX = window.innerWidth - win.offsetWidth;
+    const maxY = (window.innerHeight - TASKBAR_H) - win.offsetHeight;
+
+    let nx = parseInt(win.style.left || '0', 10);
+    let ny = parseInt(win.style.top || '0', 10);
+
+    if(isNaN(nx)) nx = 0;
+    if(isNaN(ny)) ny = 0;
+
+    nx = clamp(nx, 0, Math.max(0, maxX));
+    ny = clamp(ny, 0, Math.max(0, maxY));
+
+    win.style.left = nx + 'px';
+    win.style.top = ny + 'px';
+  }
+
+  function makeDraggable(win, header){
+    header.addEventListener('mousedown', (e)=>{
+      if(win.classList.contains('maximized')) return;
+      dragState.active = true;
+      dragState.win = win;
+      dragState.offsetX = e.clientX - win.offsetLeft;
+      dragState.offsetY = e.clientY - win.offsetTop;
+      bringToFront(win);
+      e.preventDefault();
+    });
+  }
+
+  window.addEventListener('resize', ()=>{
+    windows.forEach(w => clampToWorkArea(w));
+  });
+// --- Arkade content ---
+function buildArkadeContent(container, win){
+  // UI (mantém o visual/estrutura que você já tinha)
+  container.innerHTML =
+    '<div id="arkade-menu" class="arkade-grid"></div>' +
+
+    '<div id="game-screen" class="game-screen">' +
+      '<div class="game-screen-inner" id="game-hero">' +
+        '<div id="game-name" class="game-hero-title">GAME</div>' +
+        '<div id="game-subtitle" class="game-hero-sub"></div>' +
+        '<button id="startGameBtn" class="game-pill">JOGAR AGORA</button>' +
+        '<div id="game-controls" class="game-controls-hint"></div>' +
+        '<button id="backBtn" class="game-back">Voltar ao menu</button>' +
+      '</div>' +
+
+      '<div id="game-stage" style="display:none;">' +
+        '<div class="arcade-wrap">' +
+          '<div class="arcade-frame" id="arcade-frame">' +
+
+            '<div style="position:absolute; left:16px; top:14px; display:flex; gap:10px; align-items:center; z-index:3;">' +
+       '<div id="hud-score" style="font-size:12px; font-weight:900; letter-spacing:2px; color:#fff; opacity:.92;">SCORE: 0</div>' +
+              '<div style="width:1px; height:14px; background:rgba(255,255,255,.18)"></div>' +
+             '<div id="hud-high" style="font-size:12px; font-weight:900; letter-spacing:2px; color:#fff; opacity:.65;">RECORDE: 0</div>' +
+'<div id="pong-lives" style="margin-left:10px; display:none; gap:6px; align-items:center;">' +
+  '<span style="font-size:11px;letter-spacing:2px;opacity:.6">VIDAS</span>' +
+  '<div id="pong-lives-dots" style="display:flex; gap:6px;"></div>' +
+'</div>' +
+
+'<div id="hud-menu" style="margin-left:10px;padding:4px 10px;border-radius:10px;font-size:11px;letter-spacing:2px;cursor:pointer;background:linear-gradient(180deg,#111,#050505);box-shadow:inset 0 0 0 1px rgba(255,255,255,.15),0 0 10px rgba(237,10,34,.35);">MENU</div>' +
+'</div>' +
+
+
+            '<canvas id="game-canvas" style="position:absolute; inset:0; width:100%; height:100%; display:block;"></canvas>' +
+
+            '<div id="game-overlay" style="position:absolute; inset:0; display:none; align-items:center; justify-content:center; text-align:center; z-index:5; background:rgba(0,0,0,.78); backdrop-filter: blur(2px);">' +
+              '<div style="width:min(520px, 92%); display:flex; flex-direction:column; align-items:center; gap:14px;">' +
+                '<div id="overlay-title" style="font-size:44px; font-weight:900; font-style:italic; letter-spacing:3px; color:var(--kg-red);">GAME OVER</div>' +
+                '<div id="overlay-sub" style="font-size:11px; letter-spacing:6px; text-transform:uppercase; color:#7a8a9a;">TENTE NOVAMENTE</div>' +
+                '<button id="overlay-restart" class="game-pill" style="padding:14px 40px; letter-spacing:3px;">RESTART</button>' +
+                '<button id="overlay-back" class="game-back">Voltar ao menu</button>' +
+              '</div>' +
+            '</div>' +
+
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+
+  // refs
+  const menu = container.querySelector('#arkade-menu');
+  const screen = container.querySelector('#game-screen');
+  const hero = container.querySelector('#game-hero');
+  const gameName = container.querySelector('#game-name');
+  const subtitle = container.querySelector('#game-subtitle');
+  const controls = container.querySelector('#game-controls');
+  const startBtn = container.querySelector('#startGameBtn');
+  const backBtn = container.querySelector('#backBtn');
+
+  const stage = container.querySelector('#game-stage');
+  const frame = container.querySelector('#arcade-frame');
+  const canvas = container.querySelector('#game-canvas');
+  const ctx = canvas.getContext('2d');
+// fundo branco inicial
+ctx.fillStyle = "#fff";
+ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const overlay = container.querySelector('#game-overlay');
+  const overlayTitle = container.querySelector('#overlay-title');
+  const overlaySub = container.querySelector('#overlay-sub');
+  const overlayRestart = container.querySelector('#overlay-restart');
+  const overlayBack = container.querySelector('#overlay-back');
+
+  const hudScore = container.querySelector('#hud-score');
+  const hudHigh = container.querySelector('#hud-high');
+const hudMenu = container.querySelector('#hud-menu');
+
+
+  // catálogo (6 tiles)
+  const gameMeta = {
+    snake:   { title:'SNAKE',   sub:'JOGO DA COBRINHA',            controls:'WASD/←→↑↓: mover cobrinha' },
+    tetris:  { title:'TETRIS',  sub:'AQUELE DOS BLOCOS CAINDO',    controls:'← →: mover | ↑: girar | ↓: acelerar | espaço: drop' },
+    '2048':  { title:'2048',    sub:'DESLIZE OS NÚMEROS',          controls:'←→↑↓: mover blocos' },
+    pong:    { title:'PONG',    sub:'JOGO FAVORITO DO SEU BISAVÔ', controls:'↑↓: mover a barra' },
+    dinossaurinho:{ title:'DINOSSAURINHO',sub:'CAIU A INTERNET',        controls:'espaço / ↑ : pular' },
+    mines:   { title:'CAMPO MINADO', sub:'NÃO SEI COMO JOGA ISSO', controls:'mouse esquerdo: clicar / mouse direito: marcar' }
+  };
+
+  const icons = {
+    snake:
+      '<svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M14 18c10-8 26-4 30 6 3 7-4 12-12 12-8 0-14 4-10 10 4 6 18 8 28 0" stroke="var(--kg-red)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>',
+    tetris:
+      '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="14" y="14" width="36" height="10" fill="var(--kg-red)"/>' +
+      '<rect x="27" y="24" width="10" height="26" fill="var(--kg-red)"/>' +
+      '</svg>',
+    '2048':
+      '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none">' +
+      '<rect x="14" y="14" width="14" height="14" stroke="var(--kg-red)" stroke-width="4"/>' +
+      '<rect x="36" y="14" width="14" height="14" stroke="var(--kg-red)" stroke-width="4"/>' +
+      '<rect x="14" y="36" width="14" height="14" stroke="var(--kg-red)" stroke-width="4"/>' +
+      '<rect x="36" y="36" width="14" height="14" stroke="var(--kg-red)" stroke-width="4"/>' +
+      '</svg>',
+    pong:
+      '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">' +
+      '<rect x="18" y="18" width="6" height="28" fill="var(--kg-red)"/>' +
+      '<rect x="40" y="22" width="6" height="20" fill="var(--kg-red)" opacity="0.9"/>' +
+      '<circle cx="32" cy="32" r="3" fill="var(--kg-red)" opacity="0.8"/>' +
+      '</svg>',
+    dinossaurinho:
+  '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">' +
+  '<rect x="18" y="34" width="22" height="14" rx="3" fill="var(--kg-red)"/>' +
+  '<rect x="36" y="26" width="10" height="10" rx="2" fill="var(--kg-red)"/>' +
+  '<rect x="24" y="48" width="6" height="6" fill="var(--kg-red)"/>' +
+  '<rect x="34" y="48" width="6" height="6" fill="var(--kg-red)"/>' +
+  '<circle cx="42" cy="30" r="1.5" fill="#000"/>' +
+  '</svg>',
+
+    mines:
+      '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none">' +
+      '<circle cx="32" cy="36" r="12" fill="var(--kg-red)"/>' +
+      '<path d="M32 20c4-4 8-4 10-2" stroke="var(--kg-red)" stroke-width="4" stroke-linecap="round"/>' +
+      '<circle cx="44" cy="16" r="3" fill="var(--kg-red)"/>' +
+      '</svg>'
+  };
+
+  const order = ['snake','tetris','2048','pong','dinossaurinho','mines'];
+  menu.innerHTML = order.map(function(k){
+    return (
+      '<div class="game-tile" data-game="'+k+'">' +
+        '<div class="game-icon">'+(icons[k]||'')+'</div>' +
+        '<div class="game-title">'+gameMeta[k].title+'</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  // util UI
+  function setHud(score, high, showHigh){
+    hudScore.textContent = 'SCORE: ' + (score|0);
+    hudHigh.textContent = showHigh ? ('RECORDE: ' + (high|0)) : '';
+  }
+  function showOverlay(t, s){
+    overlayTitle.textContent = t;
+    overlaySub.textContent = s;
+    overlay.style.display = 'flex';
+  }
+  function hideOverlay(){ overlay.style.display = 'none'; }
+  function clamp(v,min,max){ return Math.max(min, Math.min(max, v)); }
+
+  // canvas resize (DPI ok)
+  const view = { w:0, h:0 };
+const HUD_H = 42;
+
+  function resizeCanvas(){
+    const r = frame.getBoundingClientRect();
+    const w = Math.max(320, Math.floor(r.width));
+    const h = Math.max(260, Math.floor(r.height));
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    view.w = w;
+view.h = h - HUD_H;
+canvas.style.top = HUD_H + 'px';
+canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
+
+
+  }
+
+  // ========= Modular games =========
+  let currentKey = null;
+  let currentGame = null;
+  const games = {};
+
+ function stopCurrent(){
+
+  stage.style.display = 'none';   // <<< ADICIONE ESTA LINHA
+
+  if(currentGame && currentGame.stop) currentGame.stop();
+  currentGame = null;
+}
+
+
+  // ---------------- SNAKE ----------------
+  (function(){
+    const s = {
+      active:false, running:false,
+      raf:0, last:0, tickMs:110,
+      cols:40, rows:24, cell:20,
+      offX:0, offY:0, playW:0, playH:0,
+      dir:{x:1,y:0}, next:{x:1,y:0},
+      body:[], food:{x:10,y:7},
+      score:0,
+      high: parseInt(localStorage.getItem('kg_high_snake')||'0',10) || 0
+    };
+
+    function spawnFood(){
+      const occ = new Set(s.body.map(p=>p.x+','+p.y));
+      for(let i=0;i<600;i++){
+        const x = Math.floor(Math.random()*s.cols);
+        const y = Math.floor(Math.random()*s.rows);
+        if(!occ.has(x+','+y)){ s.food={x,y}; return; }
+      }
+      s.food = {x:Math.floor(s.cols/2), y:Math.floor(s.rows/2)};
+    }
+
+    function layout(){
+      const margin = 36;
+      const availW = Math.max(200, view.w - margin*2);
+      const availH = Math.max(200, view.h - margin*2);
+      const cell = Math.floor(Math.min(availW / s.cols, availH / s.rows));
+      s.cell = clamp(cell, 18, 56);
+      s.playW = s.cols * s.cell;
+      s.playH = s.rows * s.cell;
+      s.offX = Math.floor((view.w - s.playW)/2);
+      s.offY = Math.floor((view.h - s.playH)/2);
+    }
+
+    function roundRect(x,y,w,h,r){
+      const rr = Math.min(r, w/2, h/2);
+      ctx.beginPath();
+      ctx.moveTo(x+rr, y);
+      ctx.arcTo(x+w, y, x+w, y+h, rr);
+      ctx.arcTo(x+w, y+h, x, y+h, rr);
+      ctx.arcTo(x, y+h, x, y, rr);
+      ctx.arcTo(x, y, x+w, y, rr);
+      ctx.closePath();
+    }
+
+    function draw(){
+      const w = view.w, h = view.h;
+      ctx.clearRect(0,0,w,h);
+
+      // bezel
+      const bezel = ctx.createLinearGradient(0,0,w,h);
+      bezel.addColorStop(0,'#0b0b0b');
+      bezel.addColorStop(.5,'#050505');
+      bezel.addColorStop(1,'#020202');
+      ctx.fillStyle = bezel;
+      ctx.fillRect(0,0,w,h);
+
+      // board
+      const bg = ctx.createLinearGradient(s.offX, s.offY, s.offX+s.playW, s.offY+s.playH);
+      bg.addColorStop(0,'#070707');
+      bg.addColorStop(1,'#020202');
+      ctx.fillStyle = bg;
+      ctx.fillRect(s.offX, s.offY, s.playW, s.playH);
+
+      // grid
+      ctx.globalAlpha = 0.26;
+      ctx.strokeStyle = '#232323';
+      ctx.lineWidth = 1;
+      for(let x=0;x<=s.cols;x++){
+        const px = s.offX + x*s.cell + .5;
+        ctx.beginPath(); ctx.moveTo(px, s.offY); ctx.lineTo(px, s.offY+s.playH); ctx.stroke();
+      }
+      for(let y=0;y<=s.rows;y++){
+        const py = s.offY + y*s.cell + .5;
+        ctx.beginPath(); ctx.moveTo(s.offX, py); ctx.lineTo(s.offX+s.playW, py); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // border glow
+      ctx.save();
+      ctx.shadowColor = 'rgba(237,10,34,0.45)';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = 'rgba(237,10,34,0.78)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(s.offX+1, s.offY+1, s.playW-2, s.playH-2);
+      ctx.restore();
+
+      // food
+      const fx = s.offX + s.food.x*s.cell;
+      const fy = s.offY + s.food.y*s.cell;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.arc(fx+s.cell/2, fy+s.cell/2, Math.max(4, s.cell*0.28), 0, Math.PI*2);
+      ctx.fill();
+
+      // snake
+      for(let i=0;i<s.body.length;i++){
+        const p = s.body[i];
+        const x = s.offX + p.x*s.cell;
+        const y = s.offY + p.y*s.cell;
+        const pad = 2;
+        const rx = x+pad, ry=y+pad, rw=s.cell-pad*2, rh=s.cell-pad*2;
+        if(i===0){
+          ctx.fillStyle = 'var(--kg-red)';
+          ctx.shadowColor = 'rgba(237,10,34,.25)';
+          ctx.shadowBlur = 10;
+        } else {
+          ctx.fillStyle = '#5a0000';
+          ctx.shadowBlur = 0;
+        }
+        roundRect(rx,ry,rw,rh,6);
+        ctx.fill();
+      }
+      ctx.shadowBlur = 0;
+
+      // vignette
+      const g = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2, w/2,h/2,Math.min(w,h)*0.85);
+      g.addColorStop(0,'rgba(0,0,0,0)');
+      g.addColorStop(1,'rgba(0,0,0,.45)');
+      ctx.fillStyle=g;
+      ctx.fillRect(0,0,w,h);
+    }
+
+    function reset(){
+      s.score = 0;
+      const cx = Math.floor(s.cols/2);
+      const cy = Math.floor(s.rows/2);
+      s.body = [{x:cx,y:cy},{x:cx-1,y:cy},{x:cx-2,y:cy}];
+      s.dir = {x:1,y:0};
+      s.next = {x:1,y:0};
+      spawnFood();
+      setHud(s.score, s.high, true);
+      hideOverlay();
+      draw();
+    }
+
+    function end(){
+      s.running = false;
+      cancelAnimationFrame(s.raf);
+      if(s.score > s.high){
+        s.high = s.score;
+        localStorage.setItem('kg_high_snake', String(s.high));
+      }
+      setHud(s.score, s.high, true);
+      showOverlay('GAME OVER', 'TENTE NOVAMENTE');
+    }
+
+    function tick(){
+      s.dir = s.next;
+      const head = s.body[0];
+      const nx = head.x + s.dir.x;
+      const ny = head.y + s.dir.y;
+
+      if(nx<0 || ny<0 || nx>=s.cols || ny>=s.rows){ end(); return; }
+      for(let i=0;i<s.body.length;i++){
+        const p=s.body[i];
+        if(p.x===nx && p.y===ny){ end(); return; }
+      }
+
+      s.body.unshift({x:nx,y:ny});
+
+      if(nx===s.food.x && ny===s.food.y){
+        s.score += 1;
+        setHud(s.score, s.high, true);
+        spawnFood();
+      } else {
+        s.body.pop();
+      }
+
+      draw();
+    }
+
+    function loop(now){
+      if(!s.running) return;
+      if(now - s.last >= s.tickMs){
+        s.last = now;
+        tick();
+      }
+      s.raf = requestAnimationFrame(loop);
+    }
+
+    function key(e){
+      const k = e.key;
+      let nd = null;
+      if(k==='ArrowUp'||k==='w'||k==='W') nd={x:0,y:-1};
+      else if(k==='ArrowDown'||k==='s'||k==='S') nd={x:0,y:1};
+      else if(k==='ArrowLeft'||k==='a'||k==='A') nd={x:-1,y:0};
+      else if(k==='ArrowRight'||k==='d'||k==='D') nd={x:1,y:0};
+      if(!nd) return false;
+      if(nd.x===-s.dir.x && nd.y===-s.dir.y) return true;
+      s.next = nd;
+      return true;
+    }
+
+    games.snake = {
+      start(){
+        s.active = true;
+        resizeCanvas();
+        layout();
+        reset();
+        s.running = true;
+        s.last = performance.now();
+        cancelAnimationFrame(s.raf);
+        s.raf = requestAnimationFrame(loop);
+      },
+      stop(){
+        s.active = false;
+        s.running = false;
+        cancelAnimationFrame(s.raf);
+      },
+      resize(){
+        resizeCanvas();
+        layout();
+        if(s.active) draw();
+      },
+      key(e){
+        if(!s.active || !s.running) return false;
+        return key(e);
+      },
+      restart(){
+        this.start();
+      }
+    };
+  })();
+
+  // ---------------- TETRIS ----------------
+  (function(){
+    const t = {
+      active:false, running:false,
+      raf:0, last:0, dropMs:650,
+      cols:10, rows:20, cell:24,
+      ox:0, oy:0,
+      grid:[], cur:null,
+      score:0,
+      high: parseInt(localStorage.getItem('kg_high_tetris')||'0',10) || 0
+    };
+
+    const SHAPES = {
+      I:[[1,1,1,1]],
+      O:[[1,1],[1,1]],
+      T:[[0,1,0],[1,1,1]],
+      L:[[1,0],[1,0],[1,1]],
+      J:[[0,1],[0,1],[1,1]],
+      S:[[0,1,1],[1,1,0]],
+      Z:[[1,1,0],[0,1,1]]
+    };
+
+    function newPiece(){
+      const ks = Object.keys(SHAPES);
+      const k = ks[Math.floor(Math.random()*ks.length)];
+      const m = SHAPES[k].map(r=>r.slice());
+      const x = Math.floor((t.cols - m[0].length)/2);
+      return { m, x, y:-1 };
+    }
+
+    function layout(){
+      const margin = 36;
+      const availW = Math.max(200, view.w - margin*2);
+      const availH = Math.max(200, view.h - margin*2);
+      t.cell = clamp(Math.floor(Math.min(availW / t.cols, availH / t.rows)), 16, 44);
+      const pw = t.cols*t.cell, ph=t.rows*t.cell;
+      t.ox = Math.floor((view.w - pw)/2);
+      t.oy = Math.floor((view.h - ph)/2);
+    }
+
+    function collide(px, py, m){
+      for(let y=0;y<m.length;y++){
+        for(let x=0;x<m[y].length;x++){
+          if(!m[y][x]) continue;
+          const gx = px + x;
+          const gy = py + y;
+          if(gx<0 || gx>=t.cols || gy>=t.rows) return true;
+          if(gy>=0 && t.grid[gy][gx]) return true;
+        }
+      }
+      return false;
+    }
+
+    function merge(){
+      const m = t.cur.m;
+      for(let y=0;y<m.length;y++){
+        for(let x=0;x<m[y].length;x++){
+          if(!m[y][x]) continue;
+          const gy = t.cur.y + y;
+          if(gy>=0) t.grid[gy][t.cur.x + x] = 1;
+        }
+      }
+    }
+
+    function clearLines(){
+      let cleared = 0;
+      for(let y=t.rows-1;y>=0;y--){
+        if(t.grid[y].every(v=>v)){
+          t.grid.splice(y,1);
+          t.grid.unshift(Array(t.cols).fill(0));
+          cleared++;
+          y++;
+        }
+      }
+      if(cleared){
+        const add = (cleared===4) ? 60 : cleared*10;
+        t.score += add;
+        if(t.score > t.high){
+          t.high = t.score;
+          localStorage.setItem('kg_high_tetris', String(t.high));
+        }
+        setHud(t.score, t.high, true);
+      }
+    }
+
+    function rotate(m){
+      return m[0].map((_,i)=>m.map(r=>r[i]).reverse());
+    }
+
+    function end(){
+      t.running = false;
+      cancelAnimationFrame(t.raf);
+      showOverlay('GAME OVER','TENTE NOVAMENTE');
+    }
+
+    function step(){
+      if(!t.cur) return;
+      if(!collide(t.cur.x, t.cur.y+1, t.cur.m)){
+        t.cur.y++;
+        return;
+      }
+      merge();
+      clearLines();
+      t.cur = newPiece();
+      if(collide(t.cur.x, t.cur.y, t.cur.m)) end();
+    }
+
+    function draw(){
+      const w=view.w, h=view.h;
+      ctx.clearRect(0,0,w,h);
+
+      // bezel
+      const bezel = ctx.createLinearGradient(0,0,w,h);
+      bezel.addColorStop(0,'#0b0b0b');
+      bezel.addColorStop(.5,'#050505');
+      bezel.addColorStop(1,'#020202');
+      ctx.fillStyle = bezel;
+      ctx.fillRect(0,0,w,h);
+
+      // board bg
+      const pw = t.cols*t.cell, ph=t.rows*t.cell;
+      const bg = ctx.createLinearGradient(t.ox,t.oy,t.ox+pw,t.oy+ph);
+      bg.addColorStop(0,'#070707');
+      bg.addColorStop(1,'#020202');
+      ctx.fillStyle = bg;
+      ctx.fillRect(t.ox,t.oy,pw,ph);
+
+      // grid
+      ctx.globalAlpha = 0.26;
+      ctx.strokeStyle = '#232323';
+      ctx.lineWidth = 1;
+      for(let x=0;x<=t.cols;x++){
+        const px = t.ox + x*t.cell + .5;
+        ctx.beginPath(); ctx.moveTo(px,t.oy); ctx.lineTo(px,t.oy+ph); ctx.stroke();
+      }
+      for(let y=0;y<=t.rows;y++){
+        const py = t.oy + y*t.cell + .5;
+        ctx.beginPath(); ctx.moveTo(t.ox,py); ctx.lineTo(t.ox+pw,py); ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      // border glow
+      ctx.save();
+      ctx.shadowColor = 'rgba(237,10,34,0.45)';
+      ctx.shadowBlur = 14;
+      ctx.strokeStyle = 'rgba(237,10,34,0.78)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(t.ox+1, t.oy+1, pw-2, ph-2);
+      ctx.restore();
+
+      // fixed blocks (mais visíveis)
+      for(let y=0;y<t.rows;y++){
+        for(let x=0;x<t.cols;x++){
+          if(!t.grid[y][x]) continue;
+          ctx.fillStyle = '#a00000';
+          ctx.shadowColor = 'rgba(237,10,34,.25)';
+          ctx.shadowBlur = 6;
+          ctx.fillRect(t.ox + x*t.cell + 1, t.oy + y*t.cell + 1, t.cell-2, t.cell-2);
+        }
+      }
+      ctx.shadowBlur = 0;
+
+      // current piece (bem viva)
+      if(t.cur){
+        const m = t.cur.m;
+        ctx.fillStyle = '#ff3b3b';
+        ctx.shadowColor = 'rgba(255,80,80,.6)';
+        ctx.shadowBlur = 16;
+        for(let y=0;y<m.length;y++){
+          for(let x=0;x<m[y].length;x++){
+            if(!m[y][x]) continue;
+            const gx = t.cur.x + x;
+            const gy = t.cur.y + y;
+            if(gy < 0) continue;
+            ctx.fillRect(t.ox + gx*t.cell + 1, t.oy + gy*t.cell + 1, t.cell-2, t.cell-2);
+          }
+        }
+        ctx.shadowBlur = 0;
+      }
+
+      // vignette
+      const g = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2, w/2,h/2,Math.min(w,h)*0.85);
+      g.addColorStop(0,'rgba(0,0,0,0)');
+      g.addColorStop(1,'rgba(0,0,0,.45)');
+      ctx.fillStyle=g;
+      ctx.fillRect(0,0,w,h);
+    }
+
+    function loop(now){
+      if(!t.running) return;
+      if(now - t.last >= t.dropMs){
+        t.last = now;
+        step();
+        draw();
+      }
+      t.raf = requestAnimationFrame(loop);
+    }
+
+    function hardDrop(){
+      while(!collide(t.cur.x, t.cur.y+1, t.cur.m)) t.cur.y++;
+      step();
+    }
+
+    function key(e){
+      const k = e.key;
+      if(k==='ArrowLeft'){
+        if(!collide(t.cur.x-1, t.cur.y, t.cur.m)) t.cur.x--;
+        draw(); return true;
+      }
+      if(k==='ArrowRight'){
+        if(!collide(t.cur.x+1, t.cur.y, t.cur.m)) t.cur.x++;
+        draw(); return true;
+      }
+      if(k==='ArrowDown'){
+        step(); draw(); return true;
+      }
+      if(k==='ArrowUp'){
+        const r = rotate(t.cur.m);
+        if(!collide(t.cur.x, t.cur.y, r)) t.cur.m = r;
+        else if(!collide(t.cur.x-1, t.cur.y, r)) { t.cur.x--; t.cur.m=r; }
+        else if(!collide(t.cur.x+1, t.cur.y, r)) { t.cur.x++; t.cur.m=r; }
+        draw(); return true;
+      }
+      if(e.code==='Space'){
+        hardDrop(); draw(); return true;
+      }
+      return false;
+    }
+
+    games.tetris = {
+      start(){
+        t.active=true;
+        resizeCanvas();
+        layout();
+        t.grid = Array.from({length:t.rows}, ()=>Array(t.cols).fill(0));
+        t.cur = newPiece();
+        t.score = 0;
+        setHud(t.score, t.high, true);
+        hideOverlay();
+        draw();
+        t.running = true;
+        t.last = performance.now();
+        cancelAnimationFrame(t.raf);
+        t.raf = requestAnimationFrame(loop);
+      },
+      stop(){
+        t.active=false;
+        t.running=false;
+        cancelAnimationFrame(t.raf);
+      },
+      resize(){
+        resizeCanvas();
+        layout();
+        if(t.active) draw();
+      },
+      key(e){
+        if(!t.active || !t.running) return false;
+        return key(e);
+      },
+      restart(){
+        this.start();
+      }
+    };
+  })();
+  // ---------------- 2048 ----------------
+  (function(){
+    const g = {
+      active:false, running:false,
+      size:4,
+      grid:[],
+      score:0,
+      high: parseInt(localStorage.getItem('kg_high_2048')||'0',10) || 0,
+      cell:0,
+      ox:0, oy:0
+    };
+
+    function emptyGrid(){
+      g.grid = Array.from({length:g.size}, ()=>Array(g.size).fill(0));
+    }
+
+    function addTile(){
+      const empties=[];
+      for(let y=0;y<g.size;y++)for(let x=0;x<g.size;x++)
+        if(!g.grid[y][x]) empties.push({x,y});
+      if(!empties.length) return;
+      const p = empties[Math.floor(Math.random()*empties.length)];
+      g.grid[p.y][p.x] = Math.random()<0.9 ? 2 : 4;
+    }
+
+    function layout(){
+      const margin = 36;
+      const availW = Math.max(200, view.w - margin*2);
+      const availH = Math.max(200, view.h - margin*2);
+      g.cell = clamp(Math.floor(Math.min(availW / g.size, availH / g.size)), 48, 140);
+      const pw = g.size * g.cell;
+      const ph = g.size * g.cell;
+      g.ox = Math.floor((view.w - pw)/2);
+      g.oy = Math.floor((view.h - ph)/2);
+    }
+
+    function draw(){
+      const w=view.w,h=view.h;
+      ctx.clearRect(0,0,w,h);
+
+      // bezel
+      const bz = ctx.createLinearGradient(0,0,w,h);
+      bz.addColorStop(0,'#0b0b0b');
+      bz.addColorStop(.5,'#050505');
+      bz.addColorStop(1,'#020202');
+      ctx.fillStyle=bz;
+      ctx.fillRect(0,0,w,h);
+
+      const pw=g.size*g.cell, ph=g.size*g.cell;
+
+      // board
+      const bg = ctx.createLinearGradient(g.ox,g.oy,g.ox+pw,g.oy+ph);
+      bg.addColorStop(0,'#070707');
+      bg.addColorStop(1,'#020202');
+      ctx.fillStyle=bg;
+      ctx.fillRect(g.ox,g.oy,pw,ph);
+
+      // glow border
+      ctx.save();
+      ctx.shadowColor='rgba(237,10,34,.45)';
+      ctx.shadowBlur=14;
+      ctx.strokeStyle='rgba(237,10,34,.78)';
+      ctx.lineWidth=2;
+      ctx.strokeRect(g.ox+1,g.oy+1,pw-2,ph-2);
+      ctx.restore();
+
+      // tiles
+      for(let y=0;y<g.size;y++){
+        for(let x=0;x<g.size;x++){
+          const v = g.grid[y][x];
+          const rx = g.ox + x*g.cell + 6;
+          const ry = g.oy + y*g.cell + 6;
+          const rw = g.cell - 12;
+
+          if(!v){
+            ctx.fillStyle='#111';
+            ctx.fillRect(rx,ry,rw,rw);
+            continue;
+          }
+
+          ctx.fillStyle = '#ff3b3b';
+          ctx.shadowColor='rgba(255,80,80,.6)';
+          ctx.shadowBlur=12;
+          ctx.fillRect(rx,ry,rw,rw);
+          ctx.shadowBlur=0;
+
+          ctx.fillStyle='#000';
+          ctx.font = '900 ' + Math.floor(rw*0.45) + 'px Segoe UI';
+          ctx.textAlign='center';
+          ctx.textBaseline='middle';
+          ctx.fillText(String(v), rx+rw/2, ry+rw/2);
+        }
+      }
+
+      // vignette
+      const vg = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2, w/2,h/2,Math.min(w,h)*0.85);
+      vg.addColorStop(0,'rgba(0,0,0,0)');
+      vg.addColorStop(1,'rgba(0,0,0,.45)');
+      ctx.fillStyle=vg;
+      ctx.fillRect(0,0,w,h);
+    }
+
+    function slide(row){
+      const arr = row.filter(v=>v);
+      for(let i=0;i<arr.length-1;i++){
+        if(arr[i]===arr[i+1]){
+          arr[i]*=2;
+          g.score += arr[i];
+          arr[i+1]=0;
+        }
+      }
+      return arr.filter(v=>v);
+    }
+
+    function rotateGrid(){
+      const n=g.size;
+      const r = Array.from({length:n},()=>Array(n).fill(0));
+      for(let y=0;y<n;y++)for(let x=0;x<n;x++) r[x][n-1-y]=g.grid[y][x];
+      g.grid=r;
+    }
+
+    function move(dir){
+      // dir: 0 left, 1 up, 2 right, 3 down
+      for(let i=0;i<dir;i++) rotateGrid();
+
+      let moved=false;
+      for(let y=0;y<g.size;y++){
+        const row=g.grid[y];
+        const sl=slide(row);
+        const nr = sl.concat(Array(g.size-sl.length).fill(0));
+        if(nr.some((v,i)=>v!==row[i])) moved=true;
+        g.grid[y]=nr;
+      }
+
+      for(let i=0;i<(4-dir)%4;i++) rotateGrid();
+
+      if(moved){
+        addTile();
+        if(g.score>g.high){
+          g.high=g.score;
+          localStorage.setItem('kg_high_2048',String(g.high));
+        }
+        setHud(g.score,g.high,true);
+        draw();
+        if(!hasMoves()) showOverlay('GAME OVER','SEM MOVIMENTOS');
+      }
+    }
+
+    function hasMoves(){
+      for(let y=0;y<g.size;y++)for(let x=0;x<g.size;x++){
+        if(!g.grid[y][x]) return true;
+        if(x<g.size-1 && g.grid[y][x]===g.grid[y][x+1]) return true;
+        if(y<g.size-1 && g.grid[y][x]===g.grid[y+1][x]) return true;
+      }
+      return false;
+    }
+
+    games['2048'] = {
+      start(){
+        g.active=true;
+        resizeCanvas();
+        layout();
+        emptyGrid();
+        g.score=0;
+        setHud(g.score,g.high,true);
+        addTile(); addTile();
+        hideOverlay();
+        draw();
+        g.running=true;
+      },
+      stop(){
+        g.active=false;
+        g.running=false;
+      },
+      resize(){
+        resizeCanvas();
+        layout();
+        if(g.active) draw();
+      },
+      key(e){
+        if(!g.active||!g.running) return false;
+        if(e.key==='ArrowLeft'){ move(0); return true; }
+        if(e.key==='ArrowUp'){ move(3); return true; }
+        if(e.key==='ArrowRight'){ move(2); return true; }
+        if(e.key==='ArrowDown'){ move(1); return true; }
+        return false;
+      },
+      restart(){
+        this.start();
+      }
+    };
+  })();
+ // ---------------- PONG ----------------
+(function(){
+  let pongLives, pongLivesDots;
+
+  const p = {
+    active:false, running:false,
+    raf:0, last:0,
+
+    // score / record
+    score:0,
+    high: parseInt(localStorage.getItem('kg_high_pong')||'0',10) || 0,
+
+    // "vidas" (erros antes do game over)
+    lives:3,
+    maxLives:3,
+
+    // playfield
+    pad: 26,
+    ox:0, oy:0, pw:0, ph:0,
+
+    // paddles/ball
+    paddleW: 14,
+    paddleH: 110,
+    paddleSpeed: 520,
+
+    leftY: 0,
+    rightY: 0,
+
+    ballX:0, ballY:0,
+    ballR: 7,
+    ballVX: 0,
+    ballVY: 0,
+
+    // input
+    moveUp:false,
+    moveDown:false,
+
+    // rules
+    winScore: 7
+  };
+
+  function layout(){
+    const pad = 28;
+    const w = view.w, h = view.h;
+
+    p.pad = pad;
+    p.ox = pad;
+    p.oy = pad;
+    p.pw = Math.max(320, w - pad*2);
+    p.ph = Math.max(240, h - pad*2);
+
+    const s = Math.min(p.pw, p.ph);
+    p.paddleW = clamp(Math.floor(s * 0.022), 10, 18);
+    p.paddleH = clamp(Math.floor(s * 0.16), 80, 140);
+    p.ballR   = clamp(Math.floor(s * 0.012), 5, 9);
+    p.paddleSpeed = clamp(Math.floor(s * 0.85), 420, 720);
+  }
+
+  function drawLives(){
+    if(!pongLives || !pongLivesDots) return;
+
+    pongLives.style.display = 'flex';
+    pongLivesDots.innerHTML = '';
+
+    for(let i=0;i<p.maxLives;i++){
+      const d = document.createElement('div');
+      d.style.width = '8px';
+      d.style.height = '8px';
+      d.style.borderRadius = '50%';
+      d.style.background = i < p.lives ? '#ed0a22' : 'rgba(255,255,255,.15)';
+      d.style.boxShadow = i < p.lives ? '0 0 6px rgba(237,10,34,.6)' : 'none';
+      pongLivesDots.appendChild(d);
+    }
+  }
+
+  function resetRound(dir){
+    p.leftY  = p.oy + (p.ph - p.paddleH)/2;
+    p.rightY = p.oy + (p.ph - p.paddleH)/2;
+
+    p.ballX = p.ox + p.pw/2;
+    p.ballY = p.oy + p.ph/2;
+
+    const base = clamp(Math.min(p.pw, p.ph) * 0.55, 320, 520);
+    const ang = (Math.random()*0.6 - 0.3); // -0.3..0.3
+    const speed = base;
+
+    p.ballVX = (dir>=0 ? 1 : -1) * speed;
+    p.ballVY = speed * ang;
+  }
+
+  function end(msg){
+    p.running = false;
+    cancelAnimationFrame(p.raf);
+
+    if(p.score > p.high){
+      p.high = p.score;
+      localStorage.setItem('kg_high_pong', String(p.high));
+    }
+
+    // HUD
+    setHud(p.score, p.high, true);
+
+    // mantém as vidas desenhadas no topo no estado final
+    drawLives();
+
+    // garante que o overlay vai "restartar" o Pong
+    currentGame = games.pong;
+
+    showOverlay(msg || 'GAME OVER', 'RESTART PARA NOVA PARTIDA');
+  }
+
+  function draw(){
+    const w=view.w, h=view.h;
+    ctx.clearRect(0,0,w,h);
+
+    // bezel
+    const bz = ctx.createLinearGradient(0,0,w,h);
+    bz.addColorStop(0,'#0b0b0b');
+    bz.addColorStop(.5,'#050505');
+    bz.addColorStop(1,'#020202');
+    ctx.fillStyle=bz;
+    ctx.fillRect(0,0,w,h);
+
+    // board
+    const bg = ctx.createLinearGradient(p.ox,p.oy,p.ox+p.pw,p.oy+p.ph);
+    bg.addColorStop(0,'#070707');
+    bg.addColorStop(1,'#020202');
+    ctx.fillStyle=bg;
+    ctx.fillRect(p.ox,p.oy,p.pw,p.ph);
+
+    // grid sutil
+    ctx.globalAlpha = 0.20;
+    ctx.strokeStyle = '#232323';
+    ctx.lineWidth = 1;
+    const step = clamp(Math.floor(Math.min(p.pw,p.ph)/10), 26, 62);
+    for(let x=p.ox; x<=p.ox+p.pw; x+=step){
+      ctx.beginPath(); ctx.moveTo(x+.5, p.oy); ctx.lineTo(x+.5, p.oy+p.ph); ctx.stroke();
+    }
+    for(let y=p.oy; y<=p.oy+p.ph; y+=step){
+      ctx.beginPath(); ctx.moveTo(p.ox, y+.5); ctx.lineTo(p.ox+p.pw, y+.5); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    // borda glow
+    ctx.save();
+    ctx.shadowColor = 'rgba(237,10,34,0.45)';
+    ctx.shadowBlur = 14;
+    ctx.strokeStyle = 'rgba(237,10,34,0.78)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(p.ox+1, p.oy+1, p.pw-2, p.ph-2);
+    ctx.restore();
+
+    // linha do meio pontilhada
+    ctx.globalAlpha = 0.55;
+    ctx.fillStyle = '#2a2a2a';
+    const midX = p.ox + p.pw/2;
+    const dashH = clamp(Math.floor(p.ph/22), 10, 18);
+    const gap = dashH;
+    for(let y=p.oy+8; y<p.oy+p.ph-8; y += dashH + gap){
+      ctx.fillRect(midX-2, y, 4, dashH);
+    }
+    ctx.globalAlpha = 1;
+
+    // paddles
+    ctx.save();
+    ctx.shadowColor = 'rgba(237,10,34,.25)';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = '#a00000';
+    ctx.fillRect(p.ox + 18, p.leftY, p.paddleW, p.paddleH);
+    ctx.fillRect(p.ox + p.pw - 18 - p.paddleW, p.rightY, p.paddleW, p.paddleH);
+    ctx.restore();
+
+    // ball
+    ctx.save();
+    ctx.fillStyle = '#ff3b3b';
+    ctx.shadowColor = 'rgba(255,80,80,.6)';
+    ctx.shadowBlur = 16;
+    ctx.beginPath();
+    ctx.arc(p.ballX, p.ballY, p.ballR, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    // vignette
+    const vg = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2, w/2,h/2,Math.min(w,h)*0.85);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,.45)');
+    ctx.fillStyle=vg;
+    ctx.fillRect(0,0,w,h);
+  }
+
+  function clampPaddles(){
+    const minY = p.oy;
+    const maxY = p.oy + p.ph - p.paddleH;
+    p.leftY = clamp(p.leftY, minY, maxY);
+    p.rightY = clamp(p.rightY, minY, maxY);
+  }
+
+  function update(dt){
+    // player paddle
+    const vy = (p.moveUp ? -1 : 0) + (p.moveDown ? 1 : 0);
+    p.leftY += vy * p.paddleSpeed * dt;
+
+    // AI paddle
+    const target = p.ballY - p.paddleH/2;
+    const diff = target - p.rightY;
+    const aiSpeed = p.paddleSpeed * 0.72;
+    p.rightY += clamp(diff, -aiSpeed*dt, aiSpeed*dt);
+
+    clampPaddles();
+
+    // move ball
+    p.ballX += p.ballVX * dt;
+    p.ballY += p.ballVY * dt;
+
+    // top/bottom bounce
+    const top = p.oy + p.ballR;
+    const bot = p.oy + p.ph - p.ballR;
+    if(p.ballY < top){ p.ballY = top; p.ballVY *= -1; }
+    if(p.ballY > bot){ p.ballY = bot; p.ballVY *= -1; }
+
+    // paddle collision
+    const leftX = p.ox + 18 + p.paddleW;
+    const rightX = p.ox + p.pw - 18 - p.paddleW;
+
+    // left hit
+    if(p.ballVX < 0 && p.ballX - p.ballR <= leftX){
+      const py = p.leftY;
+      if(p.ballY >= py && p.ballY <= py + p.paddleH){
+        p.ballX = leftX + p.ballR;
+        p.ballVX *= -1;
+        const rel = (p.ballY - (py + p.paddleH/2)) / (p.paddleH/2);
+        p.ballVY += rel * 220;
+        p.ballVX *= 1.03;
+      }
+    }
+
+    // right hit
+    if(p.ballVX > 0 && p.ballX + p.ballR >= rightX){
+      const py = p.rightY;
+      if(p.ballY >= py && p.ballY <= py + p.paddleH){
+        p.ballX = rightX - p.ballR;
+        p.ballVX *= -1;
+        const rel = (p.ballY - (py + p.paddleH/2)) / (p.paddleH/2);
+        p.ballVY += rel * 200;
+        p.ballVX *= 1.03;
+      }
+    }
+
+    // scoring
+    if(p.ballX < p.ox - 40){
+      // jogador errou (AI marcou): perde vida
+      p.lives -= 1;
+
+      // <<< ESTA É A CORREÇÃO PRINCIPAL
+      drawLives();
+
+      if(p.lives <= 0){
+        end('GAME OVER');
+        return;
+      }
+
+      setHud(p.score, p.high, true);
+      resetRound(1);
+    }
+
+    if(p.ballX > p.ox + p.pw + 40){
+      // jogador marcou
+      p.score += 1;
+      setHud(p.score, p.high, true);
+
+      if(p.score >= p.winScore){
+        end('VOCÊ VENCEU!');
+        return;
+      }
+      resetRound(-1);
+    }
+  }
+
+  function loop(ts){
+    if(!p.running) return;
+    const dt = Math.min(0.032, (ts - p.last) / 1000);
+    p.last = ts;
+
+    update(dt);
+    draw();
+
+    p.raf = requestAnimationFrame(loop);
+  }
+
+  function keyDown(e){
+    if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){ p.moveUp = true; return true; }
+    if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S'){ p.moveDown = true; return true; }
+    return false;
+  }
+  function keyUp(e){
+    if(e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){ p.moveUp = false; return true; }
+    if(e.key === 'ArrowDown' || e.key === 's' || e.key === 'S'){ p.moveDown = false; return true; }
+    return false;
+  }
+
+  games.pong = {
+    start(){
+      p.active = true;
+      resizeCanvas();
+      layout();
+
+      // pega o HUD de vidas (existe porque o Arkade já montou o frame)
+      pongLives = document.getElementById('pong-lives');
+      pongLivesDots = document.getElementById('pong-lives-dots');
+
+      p.score = 0;
+      p.lives = p.maxLives;
+
+      // desenha vidas já no começo
+      drawLives();
+
+      setHud(p.score, p.high, true);
+      hideOverlay();
+
+      resetRound(1);
+
+      p.moveUp = false;
+      p.moveDown = false;
+
+      draw();
+
+      p.running = true;
+      p.last = performance.now();
+      cancelAnimationFrame(p.raf);
+      p.raf = requestAnimationFrame(loop);
+    },
+    stop(){
+      p.active = false;
+      p.running = false;
+      cancelAnimationFrame(p.raf);
+      p.moveUp = false;
+      p.moveDown = false;
+
+      // esconde o HUD de vidas ao sair do pong
+      if(pongLives) pongLives.style.display = 'none';
+    },
+    resize(){
+      resizeCanvas();
+      layout();
+      if(p.active) draw();
+    },
+    key(e){
+      if(!p.active || !p.running) return false;
+      return keyDown(e);
+    },
+    keyup(e){
+      if(!p.active) return false;
+      return keyUp(e);
+    },
+    restart(){
+      this.start();
+    }
+  };
+})();
+// ---------------- DINOSSAURINHO ----------------
+(function(){
+
+  const d = {
+    active:false, running:false,
+    raf:0,last:0,
+
+    score:0,
+    high: parseInt(localStorage.getItem('kg_high_dino')||'0',10)||0,
+
+    // chão / velocidade
+    ground:0,
+    speed:0,
+    baseSpeed: 360,
+    maxSpeed: 900,
+    accel: 26, // aceleração por segundo (gradativa)
+
+    // dino
+    x: 80,
+    y:0, vy:0,
+    size:28,
+
+    // mundo
+    obstacles:[],
+
+    // tuned physics
+    gravity: 1850,
+    jumpVel: -760,
+
+    // spawn control
+    spawnTimer: 0,
+    nextSpawn: 0.9, // segundos
+
+    // layout
+    pad: 26
+  };
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function layout(){
+    const w = view.w, h = view.h;
+
+    // chão com margem “arcade” (seguro em telas menores)
+    d.ground = Math.round(h - clamp(h * 0.18, 92, 140));
+
+    // escala leve do dino
+    const s = Math.min(w, h);
+    d.size = clamp(Math.round(s * 0.035), 22, 34);
+
+    // garante dino em cima do chão
+    d.y = d.ground - d.size;
+
+    // se ficou fora do chão por resize, corrige
+    const floorY = d.ground - d.size;
+    if(d.y > floorY) d.y = floorY;
+  }
+
+  function chooseNextSpawn(){
+    // Gap em segundos, cresce um pouco com a velocidade e tem random
+    // Mantém “jogável”: evita sequência impossível
+    const t = (d.speed - d.baseSpeed) / (d.maxSpeed - d.baseSpeed); // 0..1
+    const minT = 0.85 + t * 0.25;  // 0.85..1.10
+    const maxT = 1.35 + t * 0.40;  // 1.35..1.75
+    d.nextSpawn = minT + Math.random() * (maxT - minT);
+  }
+
+  function spawn(){
+    const w = view.w;
+
+    // Obstáculos um pouco mais “baixos” pra não exigir pulo perfeito sempre
+    const ow = 18 + Math.random()*18;      // 18..36
+    const oh = 22 + Math.random()*38;      // 22..60
+
+    // Coloca sempre fora da tela
+    d.obstacles.push({
+      x: w + 40,
+      w: ow,
+      h: oh
+    });
+  }
+
+  function reset(){
+    d.score = 0;
+    d.speed = d.baseSpeed;
+
+    d.obstacles = [];
+    d.vy = 0;
+
+    layout();
+
+    d.spawnTimer = 0;
+    chooseNextSpawn();
+
+    // Primeiro obstáculo: dá tempo do jogador “entrar no ritmo”
+    spawn();
+    d.obstacles[0].x = view.w + view.w * 0.55;
+
+    setHud(0, d.high, true);
+  }
+
+  function aabb(ax,ay,aw,ah, bx,by,bw,bh){
+    return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+  }
+
+  function update(dt){
+    // score
+    d.score += dt * 10;
+    const s = Math.floor(d.score);
+    setHud(s, d.high, true);
+
+    // speed ramp (gradativo e suave)
+    d.speed = Math.min(d.maxSpeed, d.speed + dt * d.accel);
+
+    // jump physics
+    d.vy += d.gravity * dt;
+    d.y  += d.vy * dt;
+
+    const floorY = d.ground - d.size;
+    if(d.y > floorY){
+      d.y = floorY;
+      d.vy = 0;
+    }
+
+    // move obstáculos
+    for(let o of d.obstacles) o.x -= d.speed * dt;
+
+    // remove os que saíram
+    while(d.obstacles.length && d.obstacles[0].x < -120){
+      d.obstacles.shift();
+    }
+
+    // spawn contínuo (mantém 1–2 obstáculos no máximo)
+    d.spawnTimer += dt;
+
+    // Regras de justiça:
+    // - nunca mais que 2 obstáculos ao mesmo tempo
+    // - gap mínimo em px cresce com a velocidade
+    const pxMinGap = clamp(320 + (d.speed - d.baseSpeed) * 0.35, 320, 520);
+
+    const last = d.obstacles[d.obstacles.length - 1];
+    const lastRight = last ? (last.x + last.w) : -99999;
+
+    // Só spawna se:
+    // (a) passou do tempo
+    // (b) o último obstáculo já abriu espaço suficiente
+    // (c) ainda não tem 2 obstáculos na tela
+    if(d.spawnTimer >= d.nextSpawn && d.obstacles.length < 2){
+      const distOk = (view.w + 40) - lastRight >= pxMinGap;
+      if(distOk){
+        spawn();
+        d.spawnTimer = 0;
+        chooseNextSpawn();
+      } else {
+        // ainda tá muito perto, espera um pouco e tenta de novo
+        // (sem travar a criação para sempre)
+        d.spawnTimer = d.nextSpawn * 0.75;
+      }
+    }
+
+    // colisão
+    const dx = d.x, dy = d.y, ds = d.size;
+
+    for(let o of d.obstacles){
+      const ox = o.x;
+      const oy = d.ground - o.h;
+
+      if(aabb(dx,dy,ds,ds, ox,oy,o.w,o.h)){
+        end();
+        return;
+      }
+    }
+  }
+
+  function draw(){
+    const w=view.w, h=view.h;
+    ctx.clearRect(0,0,w,h);
+
+    // fundo
+    const bg = ctx.createLinearGradient(0,0,w,h);
+    bg.addColorStop(0,'#070707');
+    bg.addColorStop(1,'#020202');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,w,h);
+
+    // chão
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = 'rgba(255,255,255,.18)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, d.ground + 1);
+    ctx.lineTo(w, d.ground + 1);
+    ctx.stroke();
+    ctx.restore();
+
+    // dino (silhueta mais “dino”)
+    ctx.save();
+    ctx.translate(d.x, d.y);
+
+    ctx.fillStyle = '#ed0a22';
+    ctx.shadowColor = 'rgba(237,10,34,.65)';
+    ctx.shadowBlur = 10;
+
+    const S = d.size;
+
+    // corpo
+    ctx.fillRect(0, S*0.38, S*0.70, S*0.38);
+
+    // cabeça
+    ctx.fillRect(S*0.52, S*0.10, S*0.38, S*0.30);
+
+    // focinho
+    ctx.fillRect(S*0.82, S*0.22, S*0.14, S*0.12);
+
+    // “braço”
+    ctx.fillRect(S*0.38, S*0.52, S*0.10, S*0.10);
+
+    // pernas
+    ctx.fillRect(S*0.14, S*0.74, S*0.14, S*0.26);
+    ctx.fillRect(S*0.44, S*0.74, S*0.14, S*0.26);
+
+    // rabo
+    ctx.fillRect(-S*0.26, S*0.52, S*0.26, S*0.10);
+
+    ctx.restore();
+
+    // obstáculos
+    ctx.save();
+    ctx.fillStyle = '#a00000';
+    ctx.shadowColor = 'rgba(237,10,34,.4)';
+    ctx.shadowBlur = 10;
+
+    for(let o of d.obstacles){
+      ctx.fillRect(o.x, d.ground - o.h, o.w, o.h);
+    }
+    ctx.restore();
+
+    // vignette
+    const vg = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2, w/2,h/2,Math.min(w,h)*0.9);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,.45)');
+    ctx.fillStyle=vg;
+    ctx.fillRect(0,0,w,h);
+  }
+
+  function loop(ts){
+    if(!d.running) return;
+    const dt = Math.min(.032, (ts - d.last) / 1000);
+    d.last = ts;
+
+    update(dt);
+    draw();
+
+    d.raf = requestAnimationFrame(loop);
+  }
+
+  function end(){
+    d.running=false;
+    cancelAnimationFrame(d.raf);
+
+    const s = Math.floor(d.score);
+    if(s > d.high){
+      d.high = s;
+      localStorage.setItem('kg_high_dino', String(d.high));
+    }
+
+    setHud(s, d.high, true);
+
+    currentGame = games.dinossaurinho;
+    showOverlay('GAME OVER', 'FOI EXTINTO');
+  }
+
+  function jump(){
+    // só pula se estiver no chão
+    const floorY = d.ground - d.size;
+    if(d.y < floorY - 0.5) return;
+
+    d.vy = d.jumpVel;
+  }
+
+  games.dinossaurinho = {
+    start(){
+      resizeCanvas();
+      d.active = true;
+
+      reset();
+      hideOverlay();
+
+      d.running = true;
+      d.last = performance.now();
+      cancelAnimationFrame(d.raf);
+      d.raf = requestAnimationFrame(loop);
+    },
+    stop(){
+      d.active = false;
+      d.running = false;
+      cancelAnimationFrame(d.raf);
+    },
+    resize(){
+      resizeCanvas();
+
+      // realinha mundo sem “enterrar”
+      layout();
+
+      // mantém obstáculos em faixa razoável
+      for(let o of d.obstacles){
+        o.x = clamp(o.x, -160, view.w + view.w);
+      }
+
+      if(d.active) draw();
+    },
+    key(e){
+      if(!d.running) return false;
+
+      if(e.key === ' ' || e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W'){
+        jump();
+        return true;
+      }
+      return false;
+    },
+    restart(){
+      this.start();
+    }
+  };
+
+})();
+
+// ---------------- CAMPO MINADO ----------------
+(function(){
+
+  const m = {
+    active:false, running:false,
+    raf:0, last:0,
+
+    // score/record
+    score:0,
+    high: parseInt(localStorage.getItem('kg_high_mines')||'0',10) || 0,
+
+    // grid
+    cols:0, rows:0,
+    mines:0,
+    cell:28,
+    ox:0, oy:0,
+    w:0, h:0,
+
+    // state
+    grid:[],          // each: {mine, adj, rev, flag}
+    started:false,
+    over:false,
+    revealedSafe:0,
+    flags:0,
+
+    // visuals
+    pad: 32
+  };
+
+  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+  function idx(x,y){ return y*m.cols + x; }
+
+  function inb(x,y){ return x>=0 && y>=0 && x<m.cols && y<m.rows; }
+
+  function neighbors(x,y){
+    const out=[];
+    for(let dy=-1; dy<=1; dy++){
+      for(let dx=-1; dx<=1; dx++){
+        if(dx===0 && dy===0) continue;
+        const nx=x+dx, ny=y+dy;
+        if(inb(nx,ny)) out.push([nx,ny]);
+      }
+    }
+    return out;
+  }
+
+  function layout(){
+    // escolhe tamanho de célula e centraliza tabuleiro
+    const w=view.w, h=view.h;
+    const pad = m.pad;
+
+    // "área útil" dentro do canvas (deixa o HUD em paz, já que ele fica fora do canvas)
+    const aw = w - pad*2;
+    const ah = h - pad*2;
+
+    // se ainda não tem grid, define um grid bom pro viewport
+    if(!m.cols || !m.rows){
+      // tenta algo “clássico” mas adaptativo
+      // (mantém jogável sem virar microscópio)
+      const targetCell = clamp(Math.floor(Math.min(w,h)/22), 22, 34);
+      const cols = clamp(Math.floor(aw / targetCell), 10, 24);
+      const rows = clamp(Math.floor(ah / targetCell), 10, 18);
+      m.cols = cols;
+      m.rows = rows;
+
+      // minas: ~15% com limites (não fica impossível)
+      m.mines = clamp(Math.round(m.cols*m.rows * 0.15), 10, Math.floor(m.cols*m.rows*0.22));
+    }
+
+    // agora calcula cell real pra caber certinho
+    m.cell = Math.floor(Math.min(aw / m.cols, ah / m.rows));
+    m.w = m.cell * m.cols;
+    m.h = m.cell * m.rows;
+
+    m.ox = Math.floor((w - m.w)/2);
+    m.oy = Math.floor((h - m.h)/2);
+  }
+
+  function makeEmptyGrid(){
+    m.grid = new Array(m.cols*m.rows);
+    for(let i=0;i<m.grid.length;i++){
+      m.grid[i] = { mine:false, adj:0, rev:false, flag:false };
+    }
+  }
+
+  function placeMinesAvoid(ax,ay){
+    // evita mina no primeiro clique e seus vizinhos
+    const forbidden = new Set();
+    forbidden.add(idx(ax,ay));
+    for(const [nx,ny] of neighbors(ax,ay)) forbidden.add(idx(nx,ny));
+
+    let placed = 0;
+    while(placed < m.mines){
+      const x = Math.floor(Math.random()*m.cols);
+      const y = Math.floor(Math.random()*m.rows);
+      const i = idx(x,y);
+      if(forbidden.has(i)) continue;
+      if(m.grid[i].mine) continue;
+      m.grid[i].mine = true;
+      placed++;
+    }
+
+    // adjacências
+    for(let y=0;y<m.rows;y++){
+      for(let x=0;x<m.cols;x++){
+        const c = m.grid[idx(x,y)];
+        if(c.mine){ c.adj = 0; continue; }
+        let n=0;
+        for(const [nx,ny] of neighbors(x,y)){
+          if(m.grid[idx(nx,ny)].mine) n++;
+        }
+        c.adj = n;
+      }
+    }
+
+    m.started = true;
+  }
+
+  function revealCell(x,y){
+    if(!inb(x,y)) return;
+    const c = m.grid[idx(x,y)];
+    if(c.rev || c.flag) return;
+
+    c.rev = true;
+
+    if(!c.mine){
+      m.revealedSafe++;
+      m.score = m.revealedSafe;
+      setHud(m.score, m.high, true);
+    }
+
+    // flood fill se adj == 0
+    if(!c.mine && c.adj === 0){
+      const q=[[x,y]];
+      while(q.length){
+        const [cx,cy]=q.pop();
+        for(const [nx,ny] of neighbors(cx,cy)){
+          const nc = m.grid[idx(nx,ny)];
+          if(nc.rev || nc.flag) continue;
+          nc.rev = true;
+          if(!nc.mine){
+            m.revealedSafe++;
+          }
+          if(!nc.mine && nc.adj === 0){
+            q.push([nx,ny]);
+          }
+        }
+      }
+      m.score = m.revealedSafe;
+      setHud(m.score, m.high, true);
+    }
+  }
+
+  function checkWin(){
+    const total = m.cols*m.rows;
+    const safe = total - m.mines;
+    return m.revealedSafe >= safe;
+  }
+
+  function gameOver(win){
+    m.running = false;
+    cancelAnimationFrame(m.raf);
+
+    // atualiza recorde
+    if(m.score > m.high){
+      m.high = m.score;
+      localStorage.setItem('kg_high_mines', String(m.high));
+    }
+    setHud(m.score, m.high, true);
+
+    currentGame = games.mines;
+
+    if(win){
+      showOverlay('VOCÊ VENCEU!', 'RESTART');
+    }else{
+      showOverlay('GAME OVER', 'explodiu');
+    }
+  }
+
+  function toggleFlag(x,y){
+    if(!inb(x,y)) return;
+    const c = m.grid[idx(x,y)];
+    if(c.rev) return;
+    c.flag = !c.flag;
+  }
+
+  function cellFromCanvas(px,py){
+    const x = Math.floor((px - m.ox) / m.cell);
+    const y = Math.floor((py - m.oy) / m.cell);
+    if(!inb(x,y)) return null;
+    return {x,y};
+  }
+
+  function draw(){
+    const w=view.w, h=view.h;
+    ctx.clearRect(0,0,w,h);
+
+    // fundo (mesmo vibe Arkade)
+    const bg = ctx.createLinearGradient(0,0,w,h);
+    bg.addColorStop(0,'#070707');
+    bg.addColorStop(1,'#020202');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0,0,w,h);
+
+    // “mesa” do tabuleiro (leve brilho)
+    ctx.save();
+    ctx.shadowColor = 'rgba(237,10,34,0.22)';
+    ctx.shadowBlur = 18;
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(m.ox-10, m.oy-10, m.w+20, m.h+20);
+    ctx.restore();
+
+    // grade
+    for(let y=0;y<m.rows;y++){
+      for(let x=0;x<m.cols;x++){
+        const c = m.grid[idx(x,y)];
+        const px = m.ox + x*m.cell;
+        const py = m.oy + y*m.cell;
+
+        // tile base
+        if(c.rev){
+          // revelado (mais chapado)
+          const g = ctx.createLinearGradient(px,py,px,py+m.cell);
+          g.addColorStop(0,'#0c0c0c');
+          g.addColorStop(1,'#050505');
+          ctx.fillStyle = g;
+          ctx.fillRect(px,py,m.cell,m.cell);
+
+          // conteúdo
+          if(c.mine){
+            // mina
+            ctx.save();
+            ctx.fillStyle = '#ed0a22';
+            ctx.shadowColor = 'rgba(237,10,34,.75)';
+            ctx.shadowBlur = 16;
+            ctx.beginPath();
+            ctx.arc(px+m.cell/2, py+m.cell/2, m.cell*0.18, 0, Math.PI*2);
+            ctx.fill();
+            ctx.restore();
+          }else if(c.adj>0){
+            // número
+            ctx.save();
+            ctx.fillStyle = 'rgba(255,255,255,.88)';
+            ctx.font = `900 ${Math.floor(m.cell*0.46)}px Segoe UI, Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = 'rgba(0,0,0,.65)';
+            ctx.shadowBlur = 6;
+            ctx.fillText(String(c.adj), px+m.cell/2, py+m.cell/2+1);
+            ctx.restore();
+          }
+        }else{
+          // não revelado (bevel)
+          const g = ctx.createLinearGradient(px,py,px+m.cell,py+m.cell);
+          g.addColorStop(0,'#141414');
+          g.addColorStop(1,'#070707');
+          ctx.fillStyle = g;
+          ctx.fillRect(px,py,m.cell,m.cell);
+
+          // brilho borda superior/esquerda
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(px+1, py+m.cell-1);
+          ctx.lineTo(px+1, py+1);
+          ctx.lineTo(px+m.cell-1, py+1);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          // sombra inferior/direita
+          ctx.globalAlpha = 0.35;
+          ctx.strokeStyle = '#000000';
+          ctx.beginPath();
+          ctx.moveTo(px+m.cell-1, py+1);
+          ctx.lineTo(px+m.cell-1, py+m.cell-1);
+          ctx.lineTo(px+1, py+m.cell-1);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+
+          // bandeira
+          if(c.flag){
+            ctx.save();
+            ctx.fillStyle = '#ed0a22';
+            ctx.shadowColor = 'rgba(237,10,34,.65)';
+            ctx.shadowBlur = 12;
+
+            const cx = px + m.cell*0.50;
+            const cy = py + m.cell*0.52;
+
+            // haste
+            ctx.fillRect(cx - m.cell*0.18, cy - m.cell*0.18, m.cell*0.07, m.cell*0.42);
+            // pano
+            ctx.beginPath();
+            ctx.moveTo(cx - m.cell*0.11, cy - m.cell*0.18);
+            ctx.lineTo(cx + m.cell*0.18, cy - m.cell*0.08);
+            ctx.lineTo(cx - m.cell*0.11, cy + m.cell*0.02);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+          }
+        }
+
+        // linhas da grade (bem visíveis)
+        ctx.strokeStyle = 'rgba(255,255,255,.10)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(px+.5, py+.5, m.cell-1, m.cell-1);
+      }
+    }
+
+    // borda glow externa do tabuleiro
+    ctx.save();
+    ctx.shadowColor = 'rgba(237,10,34,0.35)';
+    ctx.shadowBlur = 18;
+    ctx.strokeStyle = 'rgba(237,10,34,0.55)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(m.ox+1, m.oy+1, m.w-2, m.h-2);
+    ctx.restore();
+
+    // vignette
+    const vg = ctx.createRadialGradient(w/2,h/2,Math.min(w,h)*0.2, w/2,h/2,Math.min(w,h)*0.9);
+    vg.addColorStop(0,'rgba(0,0,0,0)');
+    vg.addColorStop(1,'rgba(0,0,0,.45)');
+    ctx.fillStyle=vg;
+    ctx.fillRect(0,0,w,h);
+  }
+
+  function loop(ts){
+    if(!m.running) return;
+    const dt = Math.min(.032, (ts - m.last)/1000);
+    m.last = ts;
+
+    // Campo Minado não precisa “update” contínuo, mas a gente redesenha
+    // por consistência e pra mostrar flags imediatamente.
+    draw();
+
+    m.raf = requestAnimationFrame(loop);
+  }
+
+  function handleLeftClick(px,py){
+    const c = cellFromCanvas(px,py);
+    if(!c) return;
+
+    if(!m.started){
+      placeMinesAvoid(c.x,c.y);
+    }
+
+    const cell = m.grid[idx(c.x,c.y)];
+    if(cell.flag || cell.rev) return;
+
+    // clicou numa mina
+    if(cell.mine){
+      cell.rev = true;
+      draw();
+      gameOver(false);
+      return;
+    }
+
+    revealCell(c.x,c.y);
+
+    if(checkWin()){
+      draw();
+      gameOver(true);
+    }
+  }
+
+  function handleRightClick(px,py){
+    const c = cellFromCanvas(px,py);
+    if(!c) return;
+
+    if(!m.started){
+      // permite marcar antes do primeiro clique, mas o primeiro clique ainda será seguro
+    }
+
+    toggleFlag(c.x,c.y);
+  }
+
+  games.mines = {
+    start(){
+      resizeCanvas();
+      m.active = true;
+
+      // reset state
+      m.cols = 0; m.rows = 0;
+      m.started = false;
+      m.over = false;
+      m.revealedSafe = 0;
+      m.score = 0;
+
+      layout();
+      makeEmptyGrid();
+
+      setHud(m.score, m.high, true);
+      hideOverlay();
+
+      draw();
+
+      m.running = true;
+      m.last = performance.now();
+      cancelAnimationFrame(m.raf);
+      m.raf = requestAnimationFrame(loop);
+    },
+
+    stop(){
+      m.active = false;
+      m.running = false;
+      cancelAnimationFrame(m.raf);
+    },
+
+    resize(){
+      resizeCanvas();
+      if(!m.active) return;
+
+      // mantém a partida, só recalcula layout e redesenha
+      layout();
+      draw();
+    },
+
+    // clique esquerdo
+    mouse(e){
+      if(!m.active || !m.running) return false;
+
+      const rect = canvas.getBoundingClientRect();
+
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      handleLeftClick(x,y);
+      return true;
+    },
+
+    // clique direito
+    right(e){
+      if(!m.active || !m.running) return false;
+
+      const rect = canvas.getBoundingClientRect();
+
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      handleRightClick(x,y);
+      return true;
+    },
+
+    restart(){
+      this.start();
+    }
+  };
+
+})();
+
+
+
+  // navegação
+  function showGame(key){
+    currentKey = key;
+    const meta = gameMeta[key];
+setGameTitle(meta.title);
+
+
+    menu.style.display = 'none';
+    screen.style.display = 'flex';
+    hero.style.display = 'flex';
+    stage.style.display = 'none';
+    hideOverlay();
+
+    gameName.textContent = meta.title;
+    subtitle.textContent = meta.sub;
+    controls.textContent = meta.controls;
+    startBtn.style.display = 'inline-block';
+
+    stopCurrent();
+
+    // jogos ainda não feitos: só “em breve”
+    if(!games[key]){
+      setHud(0,0,false);
+    } else {
+      setHud(0,0,true);
+    }
+  }
+
+function backToMenu(){
+  container.classList.remove('playing');
+  stopCurrent();
+  hideOverlay();
+
+  stage.style.display = 'none';   // <<< ESTA LINHA
+
+  screen.style.display = 'none';
+  menu.style.display = 'grid';
+
+  // restaura título + ícone padrão
+  setGameTitle('Jogos','🕹️');
+}
+
+
+
+  function startCurrent(){
+    container.classList.add('playing');
+
+    if(!games[currentKey]){
+      subtitle.textContent = 'EM BREVE';
+      startBtn.style.display = 'none';
+      return;
+    }
+
+    hero.style.display = 'none';
+    stage.style.display = 'block';
+    hideOverlay();
+
+    currentGame = games[currentKey];
+    currentGame.start();
+  }
+
+  // eventos
+  menu.querySelectorAll('.game-tile').forEach(function(tile){
+    tile.addEventListener('click', function(){
+      showGame(tile.dataset.game);
+    });
+  });
+
+  startBtn.addEventListener('click', startCurrent);
+  backBtn.addEventListener('click', backToMenu);
+  overlayBack.addEventListener('click', backToMenu);
+hudMenu.addEventListener('click', backToMenu);
+
+  overlayRestart.addEventListener('click', function(){
+    if(currentGame && currentGame.restart) currentGame.restart();
+    else startCurrent();
+  });
+
+  function onKeyDown(e){
+    if(stage.style.display !== 'block') return;
+    if(currentGame && currentGame.key){
+      const used = currentGame.key(e);
+      if(used) e.preventDefault();
+    }
+  }
+function onKeyUp(e){
+  if(stage.style.display !== 'block') return;
+  if(currentGame && currentGame.keyup){
+    const used = currentGame.keyup(e);
+    if(used) e.preventDefault();
+  }
+}
+window.addEventListener('keyup', onKeyUp);
+window.addEventListener('keydown', onKeyDown);
+
+
+// ---- mouse dispatcher (para jogos tipo Campo Minado) ----
+canvas.addEventListener('mousedown', e=>{
+
+  if(!currentGame) return;
+
+  if(e.button === 0 && currentGame.mouse){
+    currentGame.mouse(e);
+  }
+
+  if(e.button === 2 && currentGame.right){
+    currentGame.right(e);
+  }
+});
+
+canvas.addEventListener('contextmenu', e=>{
+
+  e.preventDefault();
+});
+
+  // resize reactivo
+  const ro = new ResizeObserver(function(){
+    if(stage.style.display === 'block' && currentGame && currentGame.resize){
+      currentGame.resize();
+    }
+  });
+  ro.observe(frame);
+
+  win._onLayoutChanged = function(){
+    if(stage.style.display === 'block' && currentGame && currentGame.resize){
+      requestAnimationFrame(function(){
+        requestAnimationFrame(function(){
+          currentGame.resize();
+        });
+      });
+    }
+  };
+
+  win._cleanup = function(){
+    try{ ro.disconnect(); }catch(e){}
+    window.removeEventListener('keydown', onKeyDown);
+window.removeEventListener('keyup', onKeyUp);
+
+    stopCurrent();
+  };
+}
+// Desktop icon
+
+  // Desktop icon
+ // coleção dos ícones
+let lastClickTime = 0;
+let lastClickedIcon = null;
+
+const desktopIcons = document.querySelectorAll('.desktop-icon');
+
+desktopIcons.forEach(icon=>{
+
+  // Clique simples = selecionar
+  icon.addEventListener('click', ()=>{
+    desktopIcons.forEach(i=>i.classList.remove('selected'));
+    icon.classList.add('selected');
+  });
+
+  // Duplo clique = abrir
+  icon.addEventListener('dblclick', (e)=>{
+    e.stopPropagation();
+
+    if(icon.id === "filesIcon") openFiles();
+    if(icon.id === "orkutIcon") openOrkutApp();
+    if(icon.id === "arkadeIcon") openArkade();
+  });
+
+});
+
+
+
+
+
+
+  // Start menu toggle (always-on-top)
+  const startBtnEl = document.getElementById('start-button');
+  const startMenu = document.getElementById('start-menu');
+
+  function openStartMenu(){
+    startMenu.style.display = 'block';
+    startMenu.style.zIndex = 30000;
+    requestAnimationFrame(()=> startMenu.classList.add('open'));
+  }
+
+  function closeStartMenu(){
+    startMenu.classList.remove('open');
+    setTimeout(()=>{ }, 250);
+  }
+
+  startBtnEl.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    if(startMenu.classList.contains('open')) closeStartMenu();
+    else openStartMenu();
+  });
+
+  document.addEventListener('click', (e)=>{
+    if(startMenu.classList.contains('open') && !startMenu.contains(e.target)) closeStartMenu();
+  });
+document.getElementById('start-notepad').addEventListener('click', ()=>{
+  closeStartMenu();
+  openNotepad();
+});
+document.getElementById('start-calc').addEventListener('click', ()=>{
+  closeStartMenu();
+  openCalculator();
+});
+document.getElementById('start-paint').addEventListener('click', ()=>{
+  closeStartMenu();
+  openPaint();
+});
+document.getElementById('start-music').addEventListener('click', ()=>{
+  closeStartMenu();
+  openMusic();
+});
+document.getElementById('start-files').addEventListener('click', ()=>{
+  closeStartMenu();
+  openFiles();
+});
+
+document.getElementById('start-settings').addEventListener('click', ()=>{
+  closeStartMenu();
+  openSettings();
+});
+document.getElementById('start-orkut').addEventListener('click', ()=>{
+    closeStartMenu();
+    openOrkutApp();
+});
+document.getElementById('chatIcon').ondblclick = openChat;
+document.getElementById('start-chat').onclick = openChat;
+
+  document.getElementById('start-arkade').addEventListener('click', ()=>{
+    closeStartMenu();
+    openArkade();
+  });
+
+const helpBtn = [...document.querySelectorAll('.start-item')]
+  .find(el => el.textContent.trim() === 'Ajuda');
+if(helpBtn){
+  helpBtn.addEventListener('click', openHelp);
+}
+
+let chatWindow = null;
+
+function openChat(){
+  if(chatWindow){
+    chatWindow.classList.remove('minimized');
+    bringToFront(chatWindow);
+    return;
+  }
+
+  chatWindow = createWindow({
+    id:'chat',
+    title:'Chat',
+    w:700,
+    h:500,
+    icon:'💬',
+    build:buildChatContent
+  });
+
+  chatWindow._onClose = ()=>{
+    chatWindow = null;
+  };
+}
+
+function buildChatContent(container, win){
+
+  container.innerHTML = `
+    <div id="chatangoMask"
+      style="
+        position:absolute;
+        inset:0;
+        overflow:hidden;
+      ">
+      <div id="chatangoMount"
+        style="
+          position:absolute;
+          top:-28px;
+          left:0;
+          width:100%;
+          height:calc(100% + 28px);
+        ">
+      </div>
+    </div>
+  `;
+
+  setTimeout(loadChatango,200);
+}
+
+
+function loadChatango(){
+
+  const mount = document.getElementById("chatangoMount");
+  if(!mount) return;
+
+  // garante que já tem tamanho
+  if(mount.offsetHeight < 200){
+    requestAnimationFrame(loadChatango);
+    return;
+  }
+
+  const script = document.createElement("script");
+  script.id = "cid0020000432572576071";
+  script.async = true;
+  script.src = "https://st.chatango.com/js/gz/emb.js";
+
+  script.innerHTML = JSON.stringify({
+    handle:"kgameos",
+    arch:"js",
+    styles:{
+      a:"ed0a22",
+      b:100,
+      c:"FFFFFF",
+      d:"FFFFFF",
+      k:"ed0a22",
+      l:"ed0a22",
+      m:"ed0a22",
+      n:"FFFFFF",
+      p:"10",
+      q:"ed0a22",
+      r:100,
+      cnrs:"0.35",
+      fwtickm:1
+    }
+  });
+script.setAttribute("data-cfasync","false"); // opcional, mas recomendo
+script.style.width  = "100%";
+script.style.height = "100%";
+script.style.display = "block";
+
+  mount.appendChild(script);
+}
+
+
+let helpWindow = null;
+
+function openHelp(){
+  closeStartMenu();
+
+  if(helpWindow){
+    helpWindow.classList.remove('minimized');
+    bringToFront(helpWindow);
+    return;
+  }
+
+  helpWindow = createWindow({
+    id: 'help',
+    title: 'Ajuda',
+    w: 420,
+    h: 260,
+    icon: '🆘',
+    build: (content)=>{
+    content.innerHTML = `
+<div style="
+  padding:24px;
+  font-size:28px;
+  line-height:1.7;
+  color:#eee;
+  white-space:pre-line;
+  text-align:center;
+">
+Bem vindo ao meu site!
+＜（＾－＾）＞
+
+Para navegar use seu mouse e saia clicando nas coisas pra ver o que acontece.
+
+Recomendo usar o site em tela cheia (só clicar o F11) para ter uma experiência mais imersiva, como se fosse um sistema operacional mesmo!
+
+Espero que goste!
+(～￣▽￣)～
+</div>
+`;
+    }
+  });
+toggleMaximize(helpWindow);
+
+  // ✅ AGORA SIM, só depois de existir
+  helpWindow.dataset.isHelp = '1';
+
+  helpWindow._onClose = () => {
+    helpWindow = null;
+  };
+}
+let notepadWindow = null;
+let paintWindow = null;
+let musicWindow = null;
+let settingsWindow = null;
+
+
+function openMusic(){
+  if(musicWindow){
+    musicWindow.classList.remove('minimized');
+    bringToFront(musicWindow);
+    return;
+  }
+
+  musicWindow = createWindow({
+    id:'musicApp',
+    title:'Música',
+    w:520,
+h:680,
+
+    icon:'🎵',
+
+build:(content, win)=>{
+
+content.style.padding = '0';
+content.style.overflow = 'hidden';
+
+content.innerHTML = `
+<div style="
+  position:absolute;
+  inset:0;
+ background:
+  radial-gradient(circle at 20% 10%, rgba(255,255,255,.25), transparent 40%),
+  linear-gradient(180deg,#ff4a4a,#8b0000 60%,#2a0000);
+  display:flex;
+  flex-direction:column;
+">
+
+  <div style="
+    padding:14px;
+    font-weight:900;
+    color:white;
+    text-shadow:0 0 10px rgba(0,150,255,.6);
+  ">
+    💿 Pesquise uma rádio (busque um estilo musical ou uma estação específica mesmo):
+  </div>
+
+  <div style="padding:10px; display:flex; gap:10px;">
+    <input id="radioQuery" placeholder="Pesquisar rádio..."
+      style="flex:1;padding:10px;border-radius:10px;border:none;">
+    <button id="radioBtn"
+      style="padding:10px 14px;border-radius:10px;border:none;cursor:pointer;">
+      Buscar
+    </button>
+  </div>
+
+<div id="mainPane" style="flex:1; position:relative; overflow:hidden;">
+
+  <!-- VISUAL (GIF) ocupa o painel inteiro -->
+  <img id="eskeletoGif" src="eskeleto.gif" style="
+    position:absolute; inset:0;
+    width:100%; height:100%;
+   object-fit:contain;
+background: radial-gradient(circle at center, rgba(0,0,0,.6), black);
+    opacity:.85;
+    filter:saturate(1.1) contrast(1.05);
+  ">
+
+  <!-- Lista de resultados por cima -->
+  <div id="radioResults" style="
+    position:absolute; inset:0;
+    overflow:auto;
+    padding:10px;
+    background: linear-gradient(180deg, rgba(0,0,0,.45), rgba(0,0,0,.15));
+    backdrop-filter: blur(6px);
+  "></div>
+
+</div>
+
+<div id="aplayer" style="background:rgba(255,255,255,.15);backdrop-filter:blur(8px);"></div>`;
+
+const query   = content.querySelector('#radioQuery');
+const btn     = content.querySelector('#radioBtn');
+const results = content.querySelector('#radioResults');
+// 🔥 some com resultados quando o campo fica vazio
+query.addEventListener('input', ()=>{
+  if(query.value.trim() === ''){
+    results.innerHTML = '';
+  }
+});
+// 🔎 Enter executa busca
+query.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    btn.click();
+  }
+});
+let ap = new APlayer({
+  container: content.querySelector('#aplayer'),
+  audio: [],
+  autoplay:false,
+  volume:0.9,
+  theme:'#ff2a2a'
+});
+window.kgAPlayer = ap;
+
+// aplica o volume mestre ao abrir/criar o player
+const raw = localStorage.getItem("kgMasterVol");
+const v = raw === null ? 0.9 : Number(raw);
+if(Number.isFinite(v)) ap.volume(Math.max(0, Math.min(1, v)), true);
+ap.on('play', ()=>{
+  const cur = ap.list?.audios?.[ap.list.index];
+  if(cur?.name){
+    setTaskbarNowPlaying(`🎵 ${cur.name} ● AO VIVO`, 'playing');
+  }
+});
+
+ap.on('pause', ()=>{
+  const cur = ap.list?.audios?.[ap.list.index];
+  if(cur?.name){
+    setTaskbarNowPlaying(`🎵 ${cur.name}`, 'paused');
+  }
+});
+
+ap.on('ended', ()=>{
+  const cur = ap.list?.audios?.[ap.list.index];
+  if(cur?.name){
+    setTaskbarNowPlaying(`🎵 ${cur.name}`, 'paused');
+  }
+});let searchTimer = 0;
+let searchToken = 0;
+
+async function doSearch(){
+  const q = query.value.trim();
+
+  if(!q){
+    results.innerHTML = '';
+    return;
+  }
+
+  const myToken = ++searchToken;
+results.style.display = 'block';
+  results.innerHTML = "Buscando...";
+
+  try{
+    const res = await fetch(
+      `https://de1.api.radio-browser.info/json/stations/search?name=${encodeURIComponent(q)}&limit=50`
+    );
+
+    if(myToken !== searchToken) return;
+
+    const data = await res.json();
+
+    if(myToken !== searchToken) return;
+
+    results.innerHTML = '';
+
+    data
+      .filter(r => r.url_resolved && r.lastcheckok === 1)
+      .slice(0,30)
+      .forEach(r=>{
+        const div = document.createElement('div');
+        div.textContent = r.name;
+        div.style = `
+          padding:8px;
+          margin:6px 0;
+          border-radius:8px;
+          background:rgba(255,255,255,.15);
+          color:white;
+          cursor:pointer;
+        `;
+
+ div.onclick = ()=>{
+  ap.list.clear();
+  ap.list.add([{
+    name:r.name,
+    artist:'Radio Browser',
+    url:r.url_resolved,
+    cover:'sound.gif'
+  }]);
+
+  ap.play();
+
+  // 🔴 atualiza indicador da taskbar
+  setTaskbarNowPlaying(`🎵 ${r.name} ● AO VIVO`);
+
+  // 👇 some a lista
+  results.innerHTML = '';
+  results.style.display = 'none';
+};
+
+        results.appendChild(div);
+      });
+
+  }catch(err){
+    if(myToken !== searchToken) return;
+    results.innerHTML = "Erro na busca 😵";
+  }
+}
+
+btn.onclick = ()=> doSearch();
+
+query.addEventListener('input', ()=>{
+  clearTimeout(searchTimer);
+
+  if(query.value.trim() === ''){
+    results.innerHTML = '';
+    return;
+  }
+
+  searchTimer = setTimeout(doSearch, 350);
+});
+
+const prevCleanup = win._cleanup;
+win._cleanup = ()=>{
+  // ✅ limpa o indicador da taskbar ao fechar o app
+  setTaskbarNowPlaying('');
+  try{ ap.destroy(); }catch(_){}
+  if(prevCleanup) prevCleanup();
+};
+
+}
+  });
+
+  musicWindow._onClose = () => {
+    musicWindow = null;
+  };
+}
+
+
+function openPaint(){
+
+  if(paintWindow){
+    paintWindow.classList.remove('minimized');
+    bringToFront(paintWindow);
+    return;
+  }
+
+  paintWindow = createWindow({
+    id:'paint',
+    title:'Paint',
+    w:720,
+    h:520,
+    icon:'🎨',
+    build:(content, win)=>{
+// ====== JSPaint (substitui o paint antigo) ======
+content.style.padding = '0';
+content.style.overflow = 'hidden';
+content.style.background = '#000';
+content.style.position = 'relative';
+
+content.innerHTML = `
+  <style>
+    .jspaint-frame{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      border:0;
+      display:block;
+      background:#000;
+    }
+  </style>
+  <iframe class="jspaint-frame" src="jspaint/index.html"></iframe>
+`;
+
+// impede que o código do paint antigo rode (canvas/buttons etc.)
+win._cleanup = ()=>{};
+win._onLayoutChanged = ()=>{};
+return;
+
+
+    }
+  });
+
+  paintWindow._onClose = ()=>{
+    paintWindow = null;
+  };
+}
+
+let filesWindow = null;
+
+function openFiles(){
+  if(filesWindow){
+    filesWindow.classList.remove('minimized');
+    bringToFront(filesWindow);
+    return;
+  }
+
+  filesWindow = createWindow({
+    id:'files',
+    title:'Arquivos',
+    w: 860,
+    h: 540,
+    icon:'📁',
+    build: buildFilesContent
+  });
+
+  filesWindow._onClose = ()=>{ filesWindow = null; };
+}
+
+function buildFilesContent(content, win){
+
+  // ============================
+  // 1) SEU "DISCO" DE ARQUIVOS
+  // ============================
+  // Troque os exemplos pelos seus arquivos.
+  // Dica: coloque tudo numa pasta tipo /assets/...
+  const FILES = {
+    images: [
+    { name:'ete', url:'imagens/ete.jpg' },
+{ name:'gatomusga', url:'imagens/gatomusga.jpg' },
+{ name:'tralei', url:'imagens/tralei.jpg' },
+{ name:'xaves', url:'imagens/xaves.jpg' },
+{ name:'gatomolhado', url:'imagens/gatomolhado.jpg' },
+{ name:'kirbo', url:'imagens/kirbo.jpg' },
+{ name:'pictochat', url:'imagens/pictochat.jpg' },
+{ name:'elesestaodeolhoemnos', url:'imagens/elesestaodeolhoemnos.jpg' },
+{ name:'fofos', url:'imagens/fofos.jpg' },
+{ name:'mikufdp', url:'imagens/mikufdp.jpg' },
+{ name:'pclove', url:'imagens/pclove.jpg' },
+{ name:'friaca', url:'imagens/friaca.jpg' },
+{ name:'miranah', url:'imagens/miranah.jpg' },
+{ name:'telpatia', url:'imagens/telpatia.jpg' },
+{ name:'memes', url:'imagens/memes.jpg' },
+{ name:'mimixi', url:'imagens/mimixi.jpg' },
+{ name:'trololo', url:'imagens/trololo.jpg' },
+{ name:'xbox', url:'imagens/xbox.jpg' },
+{ name:'foda', url:'imagens/foda.jpg' },
+{ name:'fofo', url:'imagens/fofo.jpg' },
+{ name:'goxtosas', url:'imagens/goxtosas.jpg' },
+{ name:'alieniga', url:'imagens/alieniga.jpg' },
+{ name:'bostil', url:'imagens/bostil.jpg' },
+{ name:'migu', url:'imagens/migu.jpg' },
+{ name:'minionbunda', url:'imagens/minionbunda.jpg' },
+{ name:'evangelico', url:'imagens/evangelico.jpg' },
+{ name:'abraseusolhos', url:'imagens/abraseusolhos.jpg' },
+{ name:'dante-dmc', url:'imagens/dante-dmc.gif' },
+{ name:'supersaiajeans5', url:'imagens/supersaiajeans5.jpg' },
+
+
+
+    ],
+    audio: [
+   { name:'Em nhạt nhoà đôi mi - Tăng Duy Tân Phong Max', url:'audios/Em nhạt nhoà đôi mi - Tăng Duy Tân Phong Max.mp3' },
+      { name:'Antedeguemon', url:'audios/antedeguemon.mp3' },
+{ name:'trote delegado', url:'audios/trote delegado.mp3' },
+{ name:'BOATE CALIFÓRNIA', url:'audios/BOATE CALIFÓRNIA.mp3' },
+{ name:'trote et', url:'audios/trote et.mp3' },
+{ name:'victor papa', url:'audios/victor papa.mp3' },
+
+   
+    ],
+    video: [
+     { name:'hahaha', url:'videos/hahaha.mp4' },
+{ name:'kart', url:'videos/kart.mp4' },
+{ name:'naosei', url:'videos/naosei.mp4' },
+{ name:'rj', url:'videos/rj.mp4' },
+{ name:'gato', url:'videos/gato.mp4' },
+{ name:'bazonga', url:'videos/bazonga.mp4' },
+{ name:'jogosmortais', url:'videos/jogosmortais.mp4' },
+{ name:'100reias', url:'videos/100reias.mp4' },
+{ name:'anao', url:'videos/anao.mp4' },
+{ name:'dancinha', url:'videos/dancinha.mp4' },
+{ name:'alien_hehe', url:'videos/alien_hehe.mp4' },
+{ name:'kribe', url:'videos/kribe.mp4' },
+{ name:'smile', url:'videos/smile.mp4' },
+{ name:'madoca', url:'videos/madoca.mp4' },
+
+    ]
+  };
+
+  // ============================
+  // 2) UI (Explorer)
+  // ============================
+  content.innerHTML = `
+<style>
+  .explorer{
+    height:100%;
+    display:flex;
+    flex-direction:column;
+    padding:0;
+    overflow:hidden;
+    border-radius:10px;
+
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.02)),
+      radial-gradient(circle at top right, rgba(255,255,255,.18), transparent 55%),
+      linear-gradient(180deg, rgba(120,0,0,.78), rgba(20,0,0,.92));
+  }
+
+  .exp-toolbar{
+    height:44px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    border-bottom:1px solid rgba(255,255,255,.12);
+    background: linear-gradient(180deg, rgba(0,0,0,.25), rgba(0,0,0,.45));
+  }
+
+  .exp-btn{
+    height:28px;
+    padding:0 10px;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,.14);
+    background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(0,0,0,.25));
+    color:#fff;
+    font-size:12px;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+    user-select:none;
+  }
+  .exp-btn:hover{ filter:brightness(1.08); }
+  .exp-btn:active{ transform:scale(.98); }
+
+  .exp-path{
+    flex:1;
+    height:28px;
+    display:flex;
+    align-items:center;
+    padding:0 10px;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,0,.35);
+    color:rgba(255,255,255,.92);
+    font-size:12px;
+    overflow:hidden;
+    white-space:nowrap;
+    text-overflow:ellipsis;
+  }
+
+  .exp-search{
+    width:240px;
+    height:28px;
+    border-radius:8px;
+    border:1px solid rgba(255,255,255,.14);
+    background: rgba(0,0,0,.35);
+    color:#fff;
+    padding:0 10px;
+    outline:none;
+    font-size:12px;
+  }
+  .exp-search::placeholder{ color: rgba(255,255,255,.55); }
+
+  .exp-body{
+    flex:1;
+    display:grid;
+    grid-template-columns: 220px 1fr 260px; /* nav | lista | preview */
+    min-height:0;
+  }
+
+  .exp-nav{
+    border-right:1px solid rgba(255,255,255,.10);
+    background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.40));
+    padding:10px;
+    overflow:auto;
+  }
+
+  .nav-title{
+    font-size:11px;
+    letter-spacing:2px;
+    text-transform:uppercase;
+    opacity:.7;
+    margin:6px 6px 10px;
+  }
+
+  .nav-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 10px;
+    border-radius:10px;
+    cursor:pointer;
+    border:1px solid rgba(255,255,255,.10);
+    background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(0,0,0,.20));
+    color:#fff;
+    font-size:13px;
+    margin-bottom:8px;
+  }
+  .nav-item:hover{ filter:brightness(1.08); }
+  .nav-item.active{
+    border-color: rgba(237,10,34,.55);
+    box-shadow: 0 0 14px rgba(237,10,34,.25);
+    background: linear-gradient(180deg, rgba(237,10,34,.35), rgba(0,0,0,.25));
+  }
+  .nav-ico{
+    width:26px;height:26px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    background: radial-gradient(circle at top left,#ff7777,#5a0000);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+  }
+
+  .exp-list{
+    padding:10px;
+    overflow:auto;
+    min-width:0;
+  }
+
+  .list-header{
+    display:grid;
+    grid-template-columns: 1fr 90px;
+    gap:10px;
+    padding:8px 10px;
+    border-radius:10px;
+    border:1px solid rgba(255,255,255,.10);
+    background: rgba(0,0,0,.25);
+    font-size:11px;
+    letter-spacing:1px;
+    text-transform:uppercase;
+    opacity:.8;
+    margin-bottom:8px;
+  }
+
+  .file-row{
+    display:grid;
+    grid-template-columns: 1fr 90px;
+    gap:10px;
+    align-items:center;
+    padding:10px 10px;
+    border-radius:10px;
+    cursor:pointer;
+    border:1px solid rgba(255,255,255,.10);
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.22));
+    margin-bottom:8px;
+  }
+  .file-row:hover{ filter:brightness(1.08); }
+  .file-row.selected{
+    border-color: rgba(120,210,255,.65);
+    box-shadow: 0 0 16px rgba(120,210,255,.22);
+    background: linear-gradient(180deg, rgba(120,210,255,.18), rgba(0,0,0,.25));
+  }
+
+  .file-name{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
+  .file-ico{
+    width:28px;height:28px;border-radius:8px;
+    display:flex;align-items:center;justify-content:center;
+    background: linear-gradient(180deg,#ff2a2a,#5a0000);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25);
+    flex:0 0 auto;
+  }
+  .file-text{
+    min-width:0;
+  }
+  .file-text .n{
+    font-size:13px;
+    font-weight:800;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+  .file-text .p{
+    font-size:11px;
+    opacity:.65;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .file-ext{
+    font-size:12px;
+    opacity:.75;
+    text-align:right;
+  }
+
+  .exp-preview{
+    border-left:1px solid rgba(255,255,255,.10);
+    background: linear-gradient(180deg, rgba(0,0,0,.18), rgba(0,0,0,.40));
+    padding:10px;
+    overflow:auto;
+  }
+
+  .prev-card{
+    border-radius:12px;
+    border:1px solid rgba(255,255,255,.12);
+    background: rgba(0,0,0,.25);
+    padding:12px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.10);
+  }
+
+  .prev-title{
+    font-weight:900;
+    letter-spacing:.3px;
+    margin-bottom:6px;
+    white-space:nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+  }
+
+  .prev-meta{
+    font-size:11px;
+    opacity:.7;
+    margin-bottom:10px;
+  }
+
+  .prev-area{
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,.10);
+    background:#000;
+    min-height:160px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+
+  .prev-area img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+  }
+
+  .prev-area audio,
+  .prev-area video{
+    width:100%;
+    display:block;
+  }
+
+  .prev-actions{
+    display:flex;
+    gap:8px;
+    margin-top:10px;
+  }
+
+  .prev-actions a{
+    flex:1;
+    text-align:center;
+    padding:10px 10px;
+    border-radius:10px;
+    text-decoration:none;
+    color:#fff;
+    font-weight:900;
+    letter-spacing:.4px;
+    border:1px solid rgba(255,255,255,.14);
+    background: linear-gradient(180deg,#aa0000,#440000);
+    box-shadow: 0 10px 18px rgba(0,0,0,.35);
+  }
+  .prev-actions a:hover{ filter:brightness(1.08); }
+  .prev-actions a:active{ transform:scale(.98); }
+
+  .empty{
+    opacity:.65;
+    font-size:13px;
+    padding:18px 10px;
+    text-align:center;
+  }
+</style>
+
+<div class="explorer">
+  <div class="exp-toolbar">
+      <div class="exp-path" id="expPath">Arquivos</div>
+    <input class="exp-search" id="expSearch" placeholder="Pesquisar nesta pasta..." />
+  </div>
+
+  <div class="exp-body">
+    <div class="exp-nav">
+      <div class="nav-title">Bibliotecas</div>
+
+      <div class="nav-item active" data-cat="images">
+        <div class="nav-ico">🖼️</div>
+        <div>
+          <div style="font-weight:900">Imagens</div>
+          <div style="font-size:11px;opacity:.65">Seus wallpapers e artes</div>
+        </div>
+      </div>
+
+      <div class="nav-item" data-cat="audio">
+        <div class="nav-ico">🎵</div>
+        <div>
+          <div style="font-weight:900">Áudio</div>
+          <div style="font-size:11px;opacity:.65">Músicas e sons</div>
+        </div>
+      </div>
+
+      <div class="nav-item" data-cat="video">
+        <div class="nav-ico">🎬</div>
+        <div>
+          <div style="font-weight:900">Vídeo</div>
+          <div style="font-size:11px;opacity:.65">Clipes e vídeos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="exp-list">
+      <div class="list-header">
+        <div>Nome</div>
+        <div>Tipo</div>
+      </div>
+      <div id="fileList"></div>
+    </div>
+
+    <div class="exp-preview">
+      <div class="prev-card">
+        <div class="prev-title" id="prevTitle">Selecione um arquivo</div>
+        <div class="prev-meta" id="prevMeta">Preview</div>
+        <div class="prev-area" id="prevArea">
+          <div class="empty">Nada selecionado 👀</div>
+        </div>
+        <div class="prev-actions" id="prevActions" style="display:none">
+          <a id="prevOpen" target="_blank" rel="noopener">Abrir</a>
+          <a id="prevDownload" download>Baixar</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+  // ============================
+  // 3) LÓGICA (seleção, search, preview)
+  // ============================
+  const pathEl = content.querySelector('#expPath');
+  const searchEl = content.querySelector('#expSearch');
+  const listEl = content.querySelector('#fileList');
+
+  const prevTitle = content.querySelector('#prevTitle');
+  const prevMeta  = content.querySelector('#prevMeta');
+  const prevArea  = content.querySelector('#prevArea');
+  const prevActions = content.querySelector('#prevActions');
+  const prevOpen = content.querySelector('#prevOpen');
+  const prevDownload = content.querySelector('#prevDownload');
+
+  const navItems = [...content.querySelectorAll('.nav-item')];
+
+  const history = [];
+  let currentCat = 'images';
+  let selectedIndex = -1;
+  let filtered = [];
+
+  function extOf(url){
+    const u = url.split('?')[0].split('#')[0];
+    const p = u.split('.');
+    return (p.length>1 ? p.pop().toLowerCase() : '');
+  }
+
+  function typeLabel(cat, url){
+    const e = extOf(url);
+    if(cat==='images') return e ? e.toUpperCase() : 'IMG';
+    if(cat==='audio') return e ? e.toUpperCase() : 'AUDIO';
+    if(cat==='video') return e ? e.toUpperCase() : 'VIDEO';
+    return e ? e.toUpperCase() : 'ARQ';
+  }
+
+  function iconFor(cat){
+    if(cat==='images') return '🖼️';
+    if(cat==='audio') return '🎵';
+    if(cat==='video') return '🎬';
+    return '📄';
+  }
+
+  function setPath(){
+    const nice =
+      currentCat==='images' ? 'Imagens' :
+      currentCat==='audio'  ? 'Áudio'   :
+      currentCat==='video'  ? 'Vídeo'   : 'Arquivos';
+    pathEl.textContent = `Arquivos > ${nice}`;
+  }
+
+  function clearPreview(){
+    prevTitle.textContent = 'Selecione um arquivo';
+    prevMeta.textContent = 'Preview';
+    prevArea.innerHTML = `<div class="empty">Nada selecionado 👀</div>`;
+    prevActions.style.display = 'none';
+    prevOpen.removeAttribute('href');
+    prevDownload.removeAttribute('href');
+    prevDownload.removeAttribute('download');
+  }
+
+  function renderPreview(file){
+    const e = extOf(file.url);
+    prevTitle.textContent = file.name;
+    prevMeta.textContent = `${(currentCat==='images'?'Imagem':currentCat==='audio'?'Áudio':'Vídeo')} • ${e ? e.toUpperCase() : 'Arquivo'}`;
+
+    prevOpen.href = file.url;
+    prevDownload.href = file.url;
+    prevDownload.download = (file.downloadName || file.name || 'arquivo');
+
+    prevActions.style.display = 'flex';
+
+    if(currentCat === 'images'){
+      prevArea.innerHTML = `<img src="${file.url}" alt="">`;
+      return;
+    }
+    if(currentCat === 'audio'){
+      prevArea.innerHTML = `<audio controls src="${file.url}"></audio>`;
+      return;
+    }
+    if(currentCat === 'video'){
+      prevArea.innerHTML = `<video controls src="${file.url}"></video>`;
+      return;
+    }
+
+    prevArea.innerHTML = `<div class="empty">Sem preview</div>`;
+  }
+
+  function selectRow(i){
+    selectedIndex = i;
+    const rows = [...listEl.querySelectorAll('.file-row')];
+    rows.forEach((r,idx)=> r.classList.toggle('selected', idx===i));
+    const file = filtered[i];
+    if(file) renderPreview(file);
+    else clearPreview();
+  }
+
+  function renderList(){
+    const q = (searchEl.value || '').trim().toLowerCase();
+    const all = FILES[currentCat] || [];
+    filtered = q ? all.filter(f => (f.name||'').toLowerCase().includes(q)) : all.slice();
+
+    listEl.innerHTML = '';
+
+    if(!filtered.length){
+      listEl.innerHTML = `<div class="empty">Nada aqui (ainda). Coloque seus arquivos no array <b>FILES</b> 😈</div>`;
+      clearPreview();
+      return;
+    }
+
+    filtered.forEach((f, i)=>{
+      const row = document.createElement('div');
+      row.className = 'file-row';
+      row.innerHTML = `
+        <div class="file-name">
+          <div class="file-ico">${iconFor(currentCat)}</div>
+          <div class="file-text">
+            <div class="n">${f.name || 'Sem nome'}</div>
+            <div class="p">${f.url}</div>
+          </div>
+        </div>
+        <div class="file-ext">${typeLabel(currentCat, f.url)}</div>
+      `;
+
+      row.addEventListener('click', ()=>{
+        selectRow(i);
+      });
+
+      // duplo clique: abre igual explorer
+      row.addEventListener('dblclick', ()=>{
+        const file = filtered[i];
+        if(file?.url) window.open(file.url, '_blank', 'noopener');
+      });
+
+      listEl.appendChild(row);
+    });
+
+    selectedIndex = -1;
+    clearPreview();
+  }
+
+  function goCat(cat){
+    if(cat === currentCat) return;
+    history.push(currentCat);
+    currentCat = cat;
+    selectedIndex = -1;
+
+    navItems.forEach(n => n.classList.toggle('active', n.dataset.cat === cat));
+    setPath();
+    renderList();
+  }
+
+  // nav click
+  navItems.forEach(n=>{
+    n.addEventListener('click', ()=> goCat(n.dataset.cat));
+  });
+
+ 
+
+  // search
+  searchEl.addEventListener('input', renderList);
+
+  // teclado (opcional, vibe Windows)
+  function onKey(e){
+    // só quando essa janela está na frente
+    // (bem simples: verifica se ela é a mais alta)
+    let top = null;
+    windows.forEach(w=>{
+      if(!top || (+w.style.zIndex||0) > (+top.style.zIndex||0)) top = w;
+    });
+    if(top !== win) return;
+
+    if(e.key === 'ArrowDown'){
+      if(filtered.length){
+        const ni = Math.min(filtered.length-1, (selectedIndex<0?0:selectedIndex+1));
+        selectRow(ni);
+      }
+      e.preventDefault();
+    }
+    if(e.key === 'ArrowUp'){
+      if(filtered.length){
+        const ni = Math.max(0, (selectedIndex<0?0:selectedIndex-1));
+        selectRow(ni);
+      }
+      e.preventDefault();
+    }
+    if(e.key === 'Enter'){
+      const file = filtered[selectedIndex];
+      if(file?.url) window.open(file.url, '_blank', 'noopener');
+      e.preventDefault();
+    }
+    if(e.key === 'Escape'){
+      clearPreview();
+      selectedIndex = -1;
+      const rows = [...listEl.querySelectorAll('.file-row')];
+      rows.forEach(r=> r.classList.remove('selected'));
+    }
+  }
+
+  window.addEventListener('keydown', onKey);
+
+  // cleanup
+  const prevCleanup = win._cleanup;
+  win._cleanup = ()=>{
+    window.removeEventListener('keydown', onKey);
+    if(prevCleanup) prevCleanup();
+  };
+
+  // init
+  setPath();
+  renderList();
+}
+
+
+function openNotepad(){
+
+  if(notepadWindow){
+    notepadWindow.classList.remove('minimized');
+    bringToFront(notepadWindow);
+    return;
+  }
+
+  notepadWindow = createWindow({
+    id:'notepad',
+    title:'Bloco de notas',
+    w:520,
+    h:420,
+    icon:'📝',
+  build:(content)=>{
+
+  content.innerHTML = `
+    <div style="
+      height:100%;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    ">
+
+      <textarea id="notepad-area" style="
+        flex:1;
+        resize:none;
+        background:#0b0b0b;
+        color:white;
+        border:1px solid rgba(255,255,255,.15);
+        border-radius:8px;
+        padding:12px;
+        font-family:Consolas, monospace;
+        font-size:14px;
+        outline:none;
+      " placeholder="Digite aqui..."></textarea>
+
+     <div style="
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:0 10px;
+">
+
+
+        <div id="notepad-counter" style="
+          font-size:12px;
+          opacity:.7;
+        ">
+          0 caracteres
+        </div>
+
+        <button id="notepad-save" style="
+          padding:8px 18px;
+          border-radius:10px;
+          border:none;
+          background:linear-gradient(180deg,#ff2a2a,#9b0000);
+          color:white;
+          font-weight:700;
+          cursor:pointer;
+          box-shadow:0 4px 12px rgba(0,0,0,.4);
+margin-bottom:10px;
+        ">
+          Salvar
+        </button>
+
+      </div>
+
+    </div>
+  `;
+
+  const area = content.querySelector('#notepad-area');
+  const save = content.querySelector('#notepad-save');
+// animação hover / click
+save.style.transition = 'transform .12s ease, box-shadow .15s ease, filter .15s ease';
+
+// hover
+save.addEventListener('mouseenter', ()=>{
+  save.style.transform = 'scale(1.08)';
+  save.style.boxShadow = '0 0 14px rgba(237,10,34,.6)';
+});
+
+save.addEventListener('mouseleave', ()=>{
+  save.style.transform = 'scale(1)';
+  save.style.boxShadow = '0 4px 12px rgba(0,0,0,.4)';
+});
+
+// click feedback
+save.addEventListener('mousedown', ()=>{
+  save.style.transform = 'scale(.92)';
+  save.style.filter = 'brightness(.85)';
+});
+
+save.addEventListener('mouseup', ()=>{
+  save.style.transform = 'scale(1.05)';
+  save.style.filter = 'brightness(1)';
+});
+
+  const counter = content.querySelector('#notepad-counter');
+
+  function updateCounter(){
+    counter.textContent = area.value.length + ' caracteres';
+  }
+
+  area.addEventListener('input', updateCounter);
+
+  updateCounter();
+
+  save.addEventListener('click', ()=>{
+
+    const text = area.value;
+
+    const blob = new Blob([text], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nota.txt';
+    a.click();
+
+    URL.revokeObjectURL(url);
+// feedback visual de salvamento
+save.textContent = 'Salvo ✔';
+save.style.boxShadow = '0 0 20px rgba(0,255,120,.7)';
+save.style.background = 'linear-gradient(180deg,#2cff7a,#007a34)';
+
+setTimeout(()=>{
+  save.textContent = 'Salvar';
+  save.style.boxShadow = '0 4px 12px rgba(0,0,0,.4)';
+  save.style.background = 'linear-gradient(180deg,#ff2a2a,#9b0000)';
+}, 900);
+
+  });
+}
+
+  });
+
+  notepadWindow._onClose = ()=>{
+    notepadWindow = null;
+  };
+}
+function openCalculator(){
+
+  if(calcWindow){
+    calcWindow.classList.remove('minimized');
+    bringToFront(calcWindow);
+    return;
+  }
+
+  calcWindow = createWindow({
+    id:'calc',
+    title:'Calculadora',
+    w:300,
+    h:380,
+    icon:'🧮',
+    build:(content)=>{
+
+      content.innerHTML = `
+<div style="height:100%;display:flex;flex-direction:column;gap:10px">
+
+<input id="calcDisplay" readonly value="0" style="
+height:48px;
+border:none;
+border-radius:8px;
+background:#050505;
+color:white;
+font-size:22px;
+padding:0 10px;
+text-align:right;
+box-shadow:inset 0 0 6px rgba(0,0,0,.6);
+">
+
+<div style="flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+
+${['7','8','9','/',
+'4','5','6','*',
+'1','2','3','-',
+'0','.','C','+'].map(b=>`
+<button class="calcBtn">${b}</button>
+`).join('')}
+
+<button class="calcBtn" style="grid-column:span 4;background:#600">=</button>
+
+
+</div>
+</div>
+`;
+
+      const display = content.querySelector('#calcDisplay');
+      let expr = '';
+
+      content.querySelectorAll('.calcBtn').forEach(btn=>{
+
+        btn.style.cssText += `
+border:none;
+border-radius:8px;
+background:linear-gradient(180deg,#aa0000,#440000);
+color:white;
+font-size:16px;
+cursor:pointer;
+box-shadow:0 4px 10px rgba(0,0,0,.5);
+transition:.12s;
+`;
+
+        btn.onmouseenter=()=>btn.style.transform='scale(1.06)';
+        btn.onmouseleave=()=>btn.style.transform='scale(1)';
+        btn.onmousedown=()=>btn.style.transform='scale(.92)';
+        btn.onmouseup=()=>btn.style.transform='scale(1.06)';
+
+        btn.onclick=()=>{
+
+          const v = btn.textContent;
+
+          if(v==='C'){
+            expr='';
+            display.value='0';
+            return;
+          }
+
+          if(v==='='){
+            try{
+              expr = eval(expr).toString();
+              display.value = expr;
+            }catch{
+              display.value='Erro';
+              expr='';
+            }
+            return;
+          }
+
+          expr += v;
+          display.value = expr;
+        };
+      });
+    }
+  });
+
+  calcWindow._onClose = ()=>{
+    calcWindow = null;
+  };
+}
+
+let aboutWindow = null;
+
+document.getElementById('start-about').addEventListener('click', openAbout);
+
+function openSettings(){
+
+  closeStartMenu();
+
+  if(settingsWindow){
+    settingsWindow.classList.remove('minimized');
+    bringToFront(settingsWindow);
+    return;
+  }
+
+  settingsWindow = createWindow({
+    id:'settings',
+    title:'Configurações',
+    w:520,
+    h:420,
+    icon:'⚙️',
+
+    build:(content)=>{
+
+      content.innerHTML = `
+<div style="
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  padding:20px;
+">
+
+  <div style="font-size:20px;font-weight:900;">
+    Configurações do Sistema
+  </div>
+
+  <div style="opacity:.7;font-size:13px;">
+    Ajustes básicos do KgameOS
+  </div>
+
+  <div style="margin-top:10px;display:flex;flex-direction:column;gap:12px">
+
+    <button class="settings-btn" id="toggle-crt">Alternar efeito CRT</button>
+
+  </div>
+
+</div>
+
+<style>
+.settings-btn{
+  padding:12px 18px;
+  border-radius:10px;
+  border:none;
+  background:linear-gradient(180deg,#ff2a2a,#9b0000);
+  color:white;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 6px 14px rgba(0,0,0,.45);
+  transition:.2s;
+}
+
+.settings-btn:hover{
+  transform:scale(1.05);
+  box-shadow:0 0 18px rgba(237,10,34,.7);
+}
+</style>
+`;
+
+      // exemplo de ação real
+      const crtBtn = content.querySelector('#toggle-crt');
+
+      crtBtn.onclick = ()=>{
+        document.body.classList.toggle('crt-on');
+      };
+    }
+  });
+
+  settingsWindow._onClose = ()=>{
+    settingsWindow = null;
+  };
+}
+
+function openOrkutApp(){
+  const win = createWindow({
+    id: 'Orkut',
+    title: 'Orkut',
+    w: 980,     // tamanho grande (pode mudar)
+    h: 800,
+    icon: '⌨️',
+    build: (content)=>{
+      // opcional, mas recomendado p/ iframe ficar “colado” sem borda/padding
+      content.style.padding = '0';
+
+      const iframe = document.createElement('iframe');
+      iframe.src = 'https://angiru.com.py/login';
+      iframe.style.width = '100%';
+      iframe.style.height = '100%';
+      iframe.style.border = 'none';
+iframe.style.zoom = '0.85';   // experimente 0.75–0.85 até o layout “desktop” aparecer
+
+
+      content.appendChild(iframe);
+    }
+  });
+
+  return win;
+}
+
+
+
+function openAbout(){
+  closeStartMenu();
+
+  if(aboutWindow){
+    aboutWindow.classList.remove('minimized');
+    bringToFront(aboutWindow);
+    return;
+  }
+
+  aboutWindow = createWindow({
+    id: 'about',
+    title: 'Sobre',
+    w: 520,
+    h: 420,
+    icon: 'ℹ️',
+    build: (content)=>{
+      content.innerHTML = `
+<style>
+.social-btn{
+  padding:10px 18px;
+  border-radius:12px;
+  background:linear-gradient(180deg,#ff2a2a,#9b0000);
+  color:white;
+  text-decoration:none;
+  font-weight:800;
+  letter-spacing:.5px;
+  box-shadow:0 6px 18px rgba(237,10,34,.45);
+  transition:.25s ease;
+}
+
+.social-btn:hover{
+  transform:translateY(-4px) scale(1.05);
+  box-shadow:0 12px 26px rgba(237,10,34,.8);
+}
+
+.social-btn:active{
+  transform:scale(.94);
+}
+</style>
+
+        <div style="
+          height:100%;
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          gap:14px;
+          text-align:center;
+          padding:20px;
+        ">
+
+          <img src="kgameajuda.png" style="width:160px;border-radius:12px;box-shadow:0 0 18px rgba(237,10,34,.4);">
+
+          <div style="font-size:22px;font-weight:900;">
+            Kgame_OS
+          </div>
+
+          <div style="opacity:.8;font-size:13px">
+            Versão 0.0.0.0.0.1
+          </div>
+
+         <div style="max-width:360px;font-size:14px;line-height:1.5;">
+  Sistema operacional sem bloatware para você navegar tranquilamente e aproveitar o conteúdo
+</div>
+
+<div style="
+  margin-top:6px;
+  font-size:13px;
+  opacity:.85;
+">
+  Créditos pela OS-tan:
+<a href="https://x.com/maumau_440" target="_blank"
+   style="color:#ed0a22;text-decoration:none;font-weight:700;">
+  @maumau_440
+</a>
+
+</div>
+
+
+      <div style="
+  display:flex;
+  gap:16px;
+  margin-top:6px;
+">
+
+  <a class="social-btn" href="https://www.youtube.com/@KGAMEAJUDA" target="_blank">YouTube</a>
+
+<a class="social-btn" href="https://www.instagram.com/k_game_ajuda/" target="_blank">Instagram</a>
+
+<a class="social-btn" href="https://www.tiktok.com/@k_game_ajuda" target="_blank">TikTok</a>
+
+</div>
+
+
+        </div>
+      `;
+    }
+  });
+
+  aboutWindow._onClose = ()=>{
+    aboutWindow = null;
+  };
+}
+
+
+const shutdownBtn = document.querySelector('.start-shutdown');
+const crt = document.getElementById('crt-off');
+const crtLine = document.getElementById('crt-line');
+
+if(shutdownBtn){
+  shutdownBtn.addEventListener('click', ()=>{
+
+
+setTimeout(()=>{
+
+  // fecha o menu iniciar (igual no lock)
+  closeStartMenu();
+
+  // mostra a tela de desligamento
+  const shut = document.getElementById('shutdown-screen');
+  const prog = document.getElementById('shutdown-progress');
+  const status = document.getElementById('shutdown-status');
+  const tip = document.getElementById('shutdown-tip');
+
+  if(shut){
+    shut.style.display = 'flex';
+  }
+  if(status) status.textContent = 'Desligando...';
+  if(tip) tip.textContent = 'Encerrando serviços...';
+
+  // anima a barrinha rapidinho
+  let p = 0;
+  const timer = setInterval(()=>{
+    p += 14 + Math.random()*18;
+    if(prog) prog.style.width = Math.min(100,p) + '%';
+
+    if(p > 40 && tip) tip.textContent = 'Salvando estado...';
+    if(p > 75 && tip) tip.textContent = 'Finalizando...';
+
+    if(p >= 100){
+      clearInterval(timer);
+
+      // tenta fechar
+      setTimeout(()=>{
+        window.close();
+
+        // se não fechar (browser bloqueia), fica bonito em vez de preto
+        setTimeout(()=>{
+          if(status) status.textContent = 'Desligado.';
+          if(tip) tip.textContent = 'Você pode fechar esta aba com segurança.';
+        }, 250);
+      }, 250);
+    }
+  }, 180);
+
+},700);
+
+
+  });
+}
+
+const lock = document.getElementById('lock-screen');
+
+document.querySelector('.start-lock').addEventListener('click', ()=>{
+  closeStartMenu();
+  lock.classList.add('active');
+});
+
+// clicar na tela destrava
+lock.addEventListener('click', ()=>{
+  lock.classList.remove('active');
+});
+const nowPlayingEl = document.getElementById('task-nowplaying');
+
+function setTaskbarNowPlaying(text, state='playing'){
+  if(!nowPlayingEl) return;
+
+  const t = (text || '').trim();
+
+  // só some quando você chamar com texto vazio (vamos usar isso só no close)
+  if(!t){
+    nowPlayingEl.classList.remove('active');
+    nowPlayingEl.innerHTML = '';
+    return;
+  }
+
+  nowPlayingEl.classList.add('active');
+
+ const icon = (state === 'paused') ? '⏸' : '';
+  nowPlayingEl.innerHTML =
+    `<span class="np-dot">${icon}</span><span class="np-text"></span>`;
+
+  nowPlayingEl.querySelector('.np-text').textContent = t;
+}
+// clique no indicador abre (ou foca) o app Música
+nowPlayingEl?.addEventListener('click', ()=>{
+  // openMusic já alterna/foca se estiver aberto
+  try{ openMusic(); }catch(_){}
+});
+const clockEl = document.getElementById('task-clock');
+
+function updateClock(){
+  const d = new Date();
+
+  // hora 24h
+  const h = String(d.getHours()).padStart(2,'0');
+  const m = String(d.getMinutes()).padStart(2,'0');
+
+  // data BR
+  const day = String(d.getDate()).padStart(2,'0');
+  const mon = String(d.getMonth()+1).padStart(2,'0');
+  const year = d.getFullYear();
+
+  clockEl.innerHTML = `
+    <div>${h}:${m}</div>
+    <div style="font-size:11px;opacity:.8">${day}/${mon}/${year}</div>
+  `;
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+
+const calendarEl = document.getElementById('task-calendar');
+
+function buildCalendar(){
+
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const today = now.getDate();
+
+  const first = new Date(year, month, 1).getDay();
+  const days = new Date(year, month+1, 0).getDate();
+
+  const names = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  let html = `<div style="text-align:center;font-weight:700;letter-spacing:1px">
+    ${now.toLocaleString('pt-BR',{month:'long'})} ${year}
+  </div>`;
+
+  html += `<div class="calendar-grid">`;
+
+  names.forEach(d=>{
+    html += `<div class="calendar-day">${d}</div>`;
+  });
+
+  for(let i=0;i<first;i++) html += `<div></div>`;
+
+  for(let d=1; d<=days; d++){
+    html += `<div class="calendar-cell ${d===today?'calendar-today':''}">${d}</div>`;
+  }
+
+  html += `</div>`;
+
+  calendarEl.innerHTML = html;
+}
+clockEl.addEventListener('click', e=>{
+  e.stopPropagation();
+
+  // fecha volume se estiver aberto
+  const volPop = document.getElementById('task-volume-popup');
+  if(volPop) volPop.classList.remove('open');
+
+  buildCalendar();
+  calendarEl.classList.toggle('open');
+});
+document.addEventListener('click', e=>{
+  if(!calendarEl.contains(e.target) && !clockEl.contains(e.target)){
+    calendarEl.classList.remove('open');
+  }
+});
+// ===============================
+// Volume tray + popup
+// ===============================
+(function setupTaskbarVolume(){
+  const btn = document.getElementById('task-volume');
+  const pop = document.getElementById('task-volume-popup');
+  const slider = document.getElementById('task-volume-slider');
+  if(!btn || !pop || !slider) return;
+
+  // posição do popup alinhada ao botão
+  function positionPopup(){
+    const r = btn.getBoundingClientRect();
+    const popW = pop.offsetWidth || 90;
+    let left = r.left + (r.width/2) - (popW/2);
+
+    // clamp na tela
+    left = Math.max(8, Math.min(left, window.innerWidth - popW - 8));
+    pop.style.left = left + "px";
+  }
+
+  // volume mestre (site + APlayer)
+  function applyMasterVolume(v01){
+    // 1) tudo que é <audio>/<video>
+    document.querySelectorAll('audio, video').forEach(m=>{
+      try{ m.volume = v01; }catch(_){}
+    });
+
+    // 2) APlayer do app Música (vamos expor como window.kgAPlayer)
+    if(window.kgAPlayer && typeof window.kgAPlayer.volume === "function"){
+      try{ window.kgAPlayer.volume(v01, true); }catch(_){}
+    }
+
+    localStorage.setItem("kgMasterVol", String(v01));
+  }
+
+  function getMasterVolume(){
+    const raw = localStorage.getItem("kgMasterVol");
+    const n = raw === null ? 0.9 : Number(raw);
+    return Number.isFinite(n) ? Math.max(0, Math.min(1, n)) : 0.9;
+  }
+
+  // init slider
+  const initV = getMasterVolume();
+  slider.value = String(Math.round(initV * 100));
+  applyMasterVolume(initV);
+
+  // slider -> volume
+  slider.addEventListener("input", ()=>{
+    const v = Number(slider.value) / 100;
+    applyMasterVolume(v);
+  });
+
+  // abre/fecha popup
+ btn.addEventListener("click", (e)=>{
+  e.stopPropagation();
+
+  // fecha calendário se estiver aberto
+  const cal = document.getElementById('task-calendar');
+  if(cal) cal.classList.remove('open');
+
+  pop.classList.toggle("open");
+  if(pop.classList.contains("open")){
+    positionPopup();
+  }
+});
+
+  // fecha clicando fora
+  document.addEventListener("click", (e)=>{
+    if(!pop.contains(e.target) && !btn.contains(e.target)){
+      pop.classList.remove("open");
+    }
+  });
+
+  window.addEventListener("resize", ()=>{
+    if(pop.classList.contains("open")) positionPopup();
+  });
+})();
+// ===============================
+// Desktop drag selection
+// ===============================
+const desktopEl = document.getElementById('desktop');
+
+// ==============================
+// Desktop icon dragging
+// ==============================
+let draggingIcons = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let iconStartPositions = [];
+
+// Abrir app no duplo clique
+document.querySelectorAll('.desktop-icon').forEach(icon=>{
+  icon.addEventListener('dblclick', e=>{
+    e.stopPropagation();
+
+    if(icon.id === 'filesIcon') {
+      openFiles(); // sua função de abrir app Arquivos
+    }
+    if(icon.id === 'arkadeIcon') {
+      openArkade(); // sua função de abrir app Jogos
+    }
+  });
+});
+
+
+desktopEl.addEventListener('mousedown', e=>{
+  const icon = e.target.closest('.desktop-icon');
+  if(!icon) return;
+  if(e.button !== 0) return;
+
+  e.stopPropagation();
+
+  // NOVO BLOCO
+  if(!icon.classList.contains('selected')){
+    document.querySelectorAll('.desktop-icon.selected')
+      .forEach(i=>i.classList.remove('selected'));
+
+    icon.classList.add('selected');
+  }
+
+  draggingIcons = true;
+
+  draggingIcons = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+
+iconStartPositions = [];
+const desktopRect = desktopEl.getBoundingClientRect();
+
+document.querySelectorAll('.desktop-icon.selected').forEach(i=>{
+  const rect = i.getBoundingClientRect();
+
+  iconStartPositions.push({
+    el: i,
+    x: rect.left - desktopRect.left,
+    y: rect.top  - desktopRect.top,
+    w: rect.width,
+    h: rect.height
+  });
+
+  i.classList.add('dragging');
+});
+
+
+});
+
+window.addEventListener('mousemove', e=>{
+  if(!draggingIcons) return;
+
+  const dxRaw = e.clientX - dragStartX;
+  const dyRaw = e.clientY - dragStartY;
+
+  const desktopRect = desktopEl.getBoundingClientRect();
+
+  const taskbarHeight = parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue('--taskbar-h')
+  );
+
+  // Área útil do desktop (sem a taskbar)
+  const desktopW = desktopRect.width;
+  const desktopH = desktopRect.height - taskbarHeight; 
+
+  // Bounding box do GRUPO (em coordenadas relativas ao desktop)
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+  iconStartPositions.forEach(it=>{
+    minX = Math.min(minX, it.x);
+    minY = Math.min(minY, it.y);
+    maxX = Math.max(maxX, it.x + it.w);
+    maxY = Math.max(maxY, it.y + it.h);
+  });
+
+  // Faixas permitidas de deslocamento para o grupo (mantém espaçamento)
+
+  const dxMin = -minX;
+  const dxMax = desktopW - maxX;
+  const dyMin = -minY;
+  const dyMax = desktopH - maxY;
+
+
+
+  const dx = Math.max(dxMin, Math.min(dxRaw, dxMax));
+  const dy = Math.max(dyMin, Math.min(dyRaw, dyMax));
+
+  // Aplicar o MESMO dx/dy clamped para todos (sem clamp por ícone)
+  iconStartPositions.forEach(item=>{
+  item.el.style.position = 'absolute';
+item.el.style.left = (item.x + dx) + 'px';
+item.el.style.top  = (item.y + dy) + 'px';
+
+  });
+});
+
+const GRID_W = 90;
+const GRID_H = 110;
+const GRID_OFFSET_X = 20; // mesmo padding do #desktop
+const GRID_OFFSET_Y = 20; // mesmo padding do #desktop
+
+
+function snapToGrid(x, y) {
+  return {
+    x:
+      GRID_OFFSET_X +
+      Math.round((x - GRID_OFFSET_X) / GRID_W) * GRID_W,
+
+    y:
+      GRID_OFFSET_Y +
+      Math.round((y - GRID_OFFSET_Y) / GRID_H) * GRID_H
+  };
+}
+
+
+function rectsOverlap(a, b) {
+  return !(
+    a.right  <= b.left  ||
+    a.left   >= b.right ||
+    a.bottom <= b.top   ||
+    a.top    >= b.bottom
+  );
+}
+
+
+window.addEventListener('mouseup', ()=>{
+  if(!draggingIcons) return;
+
+  draggingIcons = false;
+
+  const desktopRect = desktopEl.getBoundingClientRect();
+  const taskbarHeight = parseInt(
+    getComputedStyle(document.documentElement).getPropertyValue('--taskbar-h')
+  );
+// margens internas da grid (ajuste fino)
+const GRID_MARGIN_TOP = 24;
+const GRID_MARGIN_BOTTOM = 24;
+const GRID_MARGIN_LEFT = 16;
+const GRID_MARGIN_RIGHT = 16;
+
+
+  const icons = Array.from(document.querySelectorAll('.desktop-icon'));
+
+  document.querySelectorAll('.desktop-icon.dragging').forEach(icon=>{
+    icon.classList.remove('dragging');
+
+    const rect = icon.getBoundingClientRect();
+
+    // posição atual RELATIVA AO DESKTOP
+    let relX = rect.left - desktopRect.left;
+    let relY = rect.top  - desktopRect.top;
+
+    // snap inicial
+    let snapped = snapToGrid(relX, relY);
+
+    // retângulo do ícone
+    let testRect = {
+      left: snapped.x,
+      top: snapped.y,
+      right: snapped.x + rect.width,
+      bottom: snapped.y + rect.height
+    };
+
+    // procurar célula livre (varredura simples)
+    let found = false;
+
+    for(let y = snapped.y; y < (window.innerHeight - taskbarHeight); y += GRID_H){
+      for(let x = snapped.x; x < desktopRect.width; x += GRID_W){
+
+        testRect.left = x;
+        testRect.top = y;
+        testRect.right = x + rect.width;
+        testRect.bottom = y + rect.height;
+
+        const collision = icons.some(other=>{
+          if(other === icon) return false;
+          const r = other.getBoundingClientRect();
+          return rectsOverlap(
+            {
+              left: testRect.left + desktopRect.left,
+              top: testRect.top + desktopRect.top,
+              right: testRect.right + desktopRect.left,
+              bottom: testRect.bottom + desktopRect.top
+            },
+            r
+          );
+        });
+
+        if(!collision){
+          snapped.x = x;
+          snapped.y = y;
+          found = true;
+          break;
+        }
+      }
+      if(found) break;
+    }
+
+    // aplicar posição final
+ const taskbarRect = document.getElementById('taskbar').getBoundingClientRect();
+const maxY = taskbarRect.top - desktopRect.top - icon.offsetHeight;
+
+snapped.y = clamp(snapped.y, 0, maxY);
+
+icon.style.left = snapped.x + 'px';
+icon.style.top  = snapped.y + 'px';
+
+
+  });
+});
+
+
+
+let selBox = null;
+let selStartX = 0;
+let selStartY = 0;
+
+desktopEl.addEventListener('mousedown', e=>{
+  // somente botão esquerdo
+  if(e.button !== 0) return;
+
+const taskbarHeight = parseInt(
+  getComputedStyle(document.documentElement).getPropertyValue('--taskbar-h')
+);
+
+// não começa seleção se estiver na área da taskbar
+if (e.clientY > window.innerHeight - taskbarHeight) return;
+
+
+  // só começa seleção se clicar no fundo do desktop
+  if(e.target !== desktopEl) return;
+// limpar seleção ao clicar no fundo
+document.querySelectorAll('.desktop-icon.selected')
+  .forEach(icon => icon.classList.remove('selected'));
+
+
+  selStartX = e.clientX;
+  selStartY = e.clientY;
+
+  selBox = document.createElement('div');
+  selBox.id = 'selectionBox';
+  document.body.appendChild(selBox);
+
+  selBox.style.left = selStartX + 'px';
+  selBox.style.top  = selStartY + 'px';
+  selBox.style.width = '0px';
+  selBox.style.height = '0px';
+});
+
+window.addEventListener('mousemove', e=>{
+  if(!selBox) return;
+
+  const taskbarHeight = parseInt(
+  getComputedStyle(document.documentElement).getPropertyValue('--taskbar-h')
+);
+
+const limitY = window.innerHeight - taskbarHeight;
+
+const clampedY = Math.min(e.clientY, limitY);
+
+const x = Math.min(e.clientX, selStartX);
+const y = Math.min(clampedY, selStartY);
+
+const w = Math.abs(e.clientX - selStartX);
+const h = Math.abs(clampedY - selStartY);
+
+
+  selBox.style.left = x + 'px';
+  selBox.style.top  = y + 'px';
+  selBox.style.width  = w + 'px';
+  selBox.style.height = h + 'px';
+// seleção de ícones
+document.querySelectorAll('.desktop-icon').forEach(icon=>{
+  const iconRect = icon.getBoundingClientRect();
+  const selRect = selBox.getBoundingClientRect();
+
+  const hit =
+    iconRect.left < selRect.right &&
+    iconRect.right > selRect.left &&
+    iconRect.top < selRect.bottom &&
+    iconRect.bottom > selRect.top;
+
+  if(hit){
+    icon.classList.add('selected');
+  } else {
+    icon.classList.remove('selected');
+  }
+});
+
+});
+
+window.addEventListener('mouseup', ()=>{
+  if(selBox){
+    selBox.remove();
+    selBox = null;
+  }
+});
+window.addEventListener("load", () => {
+
+  arkadeIcon.style.left = "20px"
+  arkadeIcon.style.top = "20px"
+
+  filesIcon.style.left = "20px"
+  filesIcon.style.top = "130px"
+
+  orkutIcon.style.left = "20px"
+  orkutIcon.style.top = "240px"
+
+chatIcon.style.left = "20px";
+chatIcon.style.top  = "350px";
+
+
+})
+window.addEventListener("load", ()=>{
+
+  const progress = document.getElementById("boot-progress");
+  const status   = document.getElementById("boot-status");
+  const boot     = document.getElementById("boot-screen");
+
+  const steps = [
+    "Initializing system...",
+    "Loading drivers...",
+    "Mounting filesystem...",
+    "Starting services...",
+    "Launching desktop..."
+  ];
+
+  let i = 0;
+  let percent = 0;
+
+  const interval = setInterval(()=>{
+
+    percent += Math.random()*15;
+    progress.style.width = percent+"%";
+
+    if(i < steps.length){
+      status.textContent = steps[i];
+      i++;
+    }
+
+    if(percent >= 100){
+      clearInterval(interval);
+
+      setTimeout(()=>{
+        boot.style.opacity = "0";
+        boot.style.transition = "opacity .5s";
+
+        setTimeout(()=>{
+          boot.remove();
+        },500);
+
+      },500);
+    }
+
+  },400);
+
+});
+
+(function setupAnimeHitbox(){
+  const desktop = document.getElementById('desktop');
+  const box = document.getElementById('animeHitbox');
+  const sound = document.getElementById('animeSound');
+  if(!desktop || !box || !sound) return;
+
+  // garante que o hitbox é filho direto do desktop (não de ícones)
+  if (box.parentElement !== desktop) desktop.appendChild(box);
+
+  // presets em % (você ajusta fino com debug ligado)
+  const PRESETS = {
+    // coloque aqui seus números reais quando for ajustando
+   "169": { x: 86, y: 75, w: 6.77, h: 12.96 },
+    "1610": { x: 86, y: 75, w: 6.77, h: 12.96 },
+    "43":   { x: 86, y: 75, w: 6.77, h: 12.96 },
+  };
+
+  function pickPreset(){
+    // 4:3 e similares
+    if (window.matchMedia("(max-aspect-ratio: 5/4)").matches) return PRESETS["43"];
+
+    // 16:10
+    if (window.matchMedia("(min-aspect-ratio: 8/5) and (max-aspect-ratio: 17/10)").matches) return PRESETS["1610"];
+
+    // padrão: 16:9
+    return PRESETS["169"];
+  }
+
+  function applyPreset(){
+    const p = pickPreset();
+    box.style.left   = p.x + "%";
+    box.style.top    = p.y + "%";
+    box.style.width  = p.w + "%";
+    box.style.height = p.h + "%";
+  }
+
+  // impede qualquer drag global de ícones de “pegar” o hitbox
+  ["mousedown","pointerdown","touchstart"].forEach(evt=>{
+    box.addEventListener(evt, (e)=> e.stopPropagation(), { passive:false });
+  });
+
+  // toca o áudio
+  box.addEventListener("click", async (e)=>{
+    e.stopPropagation();
+    try{
+      sound.currentTime = 0;
+      await sound.play();
+    }catch(err){
+      console.log("Erro ao tocar som:", err);
+    }
+  });
+
+  // F8: mostra/oculta hitbox temporariamente
+  document.addEventListener("keydown", (e)=>{
+    if (e.key === "F8"){
+      box.classList.toggle("debug");
+      applyPreset(); // garante que atualiza ao ligar debug
+    }
+  });
+
+  applyPreset();
+  window.addEventListener("resize", applyPreset);
+})();
+(function setupWifiTray(){
+  const wifiBtn  = document.getElementById('task-wifi');
+  const wifiPop  = document.getElementById('task-wifi-popup');
+
+  const volBtn   = document.getElementById('task-volume');
+  const volPop   = document.getElementById('task-volume-popup');
+
+  const calPop   = document.getElementById('task-calendar');
+
+  if(!wifiBtn || !wifiPop) return;
+
+  function close(pop){
+    if(pop) pop.classList.remove('open');
+  }
+
+  function positionPopupOverButton(btn, pop){
+    const r = btn.getBoundingClientRect();
+    const w = pop.offsetWidth || 240;
+    let left = r.left + (r.width/2) - (w/2);
+
+    // clamp na tela
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+
+    pop.style.left = left + 'px';
+  }
+
+  function toggleWifi(){
+    const willOpen = !wifiPop.classList.contains('open');
+
+    // se abrir wifi: fecha os outros
+    if(willOpen){
+      close(volPop);
+      close(calPop);
+    }
+
+    wifiPop.classList.toggle('open', willOpen);
+    if(willOpen) positionPopupOverButton(wifiBtn, wifiPop);
+  }
+
+  wifiBtn.addEventListener('click', (e)=>{
+    e.stopPropagation();
+    toggleWifi();
+  });
+
+  // se clicar fora, fecha
+  document.addEventListener('mousedown', (e)=>{
+    if(!wifiPop.classList.contains('open')) return;
+    if(wifiPop.contains(e.target) || wifiBtn.contains(e.target)) return;
+    close(wifiPop);
+  });
+
+  // se abrir volume, fecha wifi (sem mexer no seu handler atual do volume)
+  if(volBtn){
+    volBtn.addEventListener('click', ()=>{
+      close(wifiPop);
+    }, true); // capture: roda antes
+  }
+
+  // se abrir calendário, fecha wifi (também sem depender do seu código do relógio)
+  const clock = document.getElementById('task-clock');
+  if(clock){
+    clock.addEventListener('click', ()=>{
+      close(wifiPop);
+    }, true);
+  }
+
+  window.addEventListener('resize', ()=>{
+    if(wifiPop.classList.contains('open')) positionPopupOverButton(wifiBtn, wifiPop);
+  });
+})();
+
+</script>
+</body>
+</html>
