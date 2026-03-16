@@ -85,10 +85,6 @@
    CRT EFFECT (GLOBAL)
    ========================= */
 
-/* =========================
-   REAL CRT EFFECT (GLOBAL)
-========================= */
-
 body.crt-on{
   background:#000;
   overflow:hidden;
@@ -743,10 +739,10 @@ body.crt-on #desktop::after{
     .window{
       position:absolute;
       background:#111;
-      border-radius:10px;
+      border-radius:12px;
       overflow:hidden;
-      box-shadow:0 18px 40px rgba(0,0,0,0.65);
-      border:1px solid rgba(255,255,255,.10);
+      box-shadow:0 18px 40px rgba(0,0,0,0.65), 0 0 22px rgba(237,10,34,.25);
+      border:1px solid rgba(255,255,255,.14);
     }
 /* =========================
    MUSIC WINDOW – AGGRESSIVE AERO
@@ -863,16 +859,6 @@ body.crt-on #desktop::after{
       box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 2px 6px rgba(0,0,0,.6);
     }
 
-    .window{
-      position:absolute;
-      background:#111;
-      border-radius:12px;
-      overflow:hidden;
-      box-shadow:0 18px 40px rgba(0,0,0,0.65), 0 0 22px rgba(237,10,34,.25);
-      border:1px solid rgba(255,255,255,.14);
-    }
-
-    .window-title{color:#fff;font-size:13px;opacity:.95;}
     .window-controls{display:flex;gap:8px; padding-right:2px;}
 
     .window-btn{
@@ -960,6 +946,24 @@ body.crt-on #desktop::after{
       height:calc(100% - var(--taskbar-h))!important;
       border-radius:0;
     }
+
+    /* ===== Resize handles ===== */
+    .resize-handle {
+      position: absolute;
+      z-index: 10;
+    }
+    /* edges */
+    .resize-handle.n  { top:-4px;    left:8px;    right:8px;  height:8px;  cursor:n-resize;  }
+    .resize-handle.s  { bottom:-4px; left:8px;    right:8px;  height:8px;  cursor:s-resize;  }
+    .resize-handle.w  { left:-4px;   top:8px;     bottom:8px; width:8px;   cursor:w-resize;  }
+    .resize-handle.e  { right:-4px;  top:8px;     bottom:8px; width:8px;   cursor:e-resize;  }
+    /* corners */
+    .resize-handle.nw { top:-4px;    left:-4px;   width:14px; height:14px; cursor:nw-resize; }
+    .resize-handle.ne { top:-4px;    right:-4px;  width:14px; height:14px; cursor:ne-resize; }
+    .resize-handle.sw { bottom:-4px; left:-4px;   width:14px; height:14px; cursor:sw-resize; }
+    .resize-handle.se { bottom:-4px; right:-4px;  width:14px; height:14px; cursor:se-resize; }
+    /* hide handles when maximized */
+    .window.maximized .resize-handle { display:none; }
 
     /* Start Menu (Win7/Frutiger-ish) */
  #start-menu{
@@ -1093,30 +1097,22 @@ body.crt-on #desktop::after{
 
 
    .start-item{
- margin-bottom:10px; /* espaço entre os botões */
+  margin-bottom:10px;
     display:flex;
     align-items:center;
     gap:10px;
   white-space:nowrap;
-
     padding:10px 12px;
     border-radius:10px;
-
     cursor:pointer;
-
     font-size:15px;
     color:#fff;
-opacity:0;
-transform: translateY(10px);
-transition: 
-  opacity .3s ease,
-  transform .3s ease;
+    opacity:0;
+    transform: translateY(10px);
     background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.02));
-
     box-shadow:
         inset 0 1px 0 rgba(255,255,255,.12),
         0 4px 10px rgba(0,0,0,.4);
-
     transition:.2s ease;
 }
 
@@ -1818,6 +1814,9 @@ function setGameTitle(name, icon='🕹️'){
     // drag
     makeDraggable(win, header);
 
+    // resize
+    makeResizable(win);
+
     // controls
     btnMin.onclick = (e)=>{ e.stopPropagation(); minimizeWindow(win); };
     btnMax.onclick = (e)=>{ e.stopPropagation(); toggleMaximize(win); };
@@ -1953,6 +1952,91 @@ function setGameTitle(name, icon='🕹️'){
       dragState.offsetY = e.clientY - win.offsetTop;
       bringToFront(win);
       e.preventDefault();
+    });
+  }
+
+  // ---- Global resize state ----
+  const resizeState = {
+    active: false, win: null, dir: '',
+    startX: 0, startY: 0,
+    startW: 0, startH: 0,
+    startL: 0, startT: 0
+  };
+  const MIN_W = 280;
+  const MIN_H = 160;
+
+  document.addEventListener('mousemove', (e)=>{
+    if(!resizeState.active || !resizeState.win) return;
+    const rs = resizeState;
+    const win = rs.win;
+
+    const dx = e.clientX - rs.startX;
+    const dy = e.clientY - rs.startY;
+
+    let newW = rs.startW;
+    let newH = rs.startH;
+    let newL = rs.startL;
+    let newT = rs.startT;
+
+    const maxT = window.innerHeight - TASKBAR_H;
+
+    if(rs.dir.includes('e')) newW = Math.max(MIN_W, rs.startW + dx);
+    if(rs.dir.includes('s')) newH = Math.max(MIN_H, Math.min(rs.startH + dy, maxT - newT));
+    if(rs.dir.includes('w')){
+      const capped = Math.min(dx, rs.startW - MIN_W);
+      newW = rs.startW - capped;
+      newL = rs.startL + capped;
+    }
+    if(rs.dir.includes('n')){
+      const capped = Math.min(dy, rs.startH - MIN_H);
+      newH = rs.startH - capped;
+      newT = clamp(rs.startT + capped, 0, rs.startT + rs.startH - MIN_H);
+    }
+
+    // prevent going off right/bottom edges
+    newW = Math.min(newW, window.innerWidth - newL);
+    newH = Math.min(newH, maxT - newT);
+
+    win.style.left   = newL + 'px';
+    win.style.top    = newT + 'px';
+    win.style.width  = newW + 'px';
+    win.style.height = newH + 'px';
+
+    if(typeof win._onLayoutChanged === 'function') win._onLayoutChanged('resize');
+  });
+
+  document.addEventListener('mouseup', ()=>{
+    if(resizeState.active){
+      resizeState.active = false;
+      resizeState.win = null;
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    }
+  });
+
+  function makeResizable(win){
+    const dirs = ['n','s','e','w','ne','nw','se','sw'];
+    dirs.forEach(dir => {
+      const handle = document.createElement('div');
+      handle.className = `resize-handle ${dir}`;
+      handle.addEventListener('mousedown', (e)=>{
+        if(win.classList.contains('maximized')) return;
+        e.stopPropagation();
+        e.preventDefault();
+        bringToFront(win);
+        resizeState.active = true;
+        resizeState.win    = win;
+        resizeState.dir    = dir;
+        resizeState.startX = e.clientX;
+        resizeState.startY = e.clientY;
+        resizeState.startW = win.offsetWidth;
+        resizeState.startH = win.offsetHeight;
+        resizeState.startL = win.offsetLeft;
+        resizeState.startT = win.offsetTop;
+        document.body.style.cursor    = getComputedStyle(handle).cursor;
+        document.body.style.userSelect = 'none';
+      });
+      win.appendChild(handle);
     });
   }
 
@@ -4152,7 +4236,6 @@ desktopIcons.forEach(icon=>{
 
   function closeStartMenu(){
     startMenu.classList.remove('open');
-    setTimeout(()=>{ }, 250);
   }
 
   startBtnEl.addEventListener('click', (e)=>{
@@ -4271,7 +4354,8 @@ function loadChatango(){
   script.async = true;
   script.src = "https://st.chatango.com/js/gz/emb.js";
 
-  script.innerHTML = JSON.stringify({
+  script.setAttribute("data-cfasync", "false");
+  script.text = JSON.stringify({
     handle:"kgameos",
     arch:"js",
     styles:{
@@ -4290,7 +4374,6 @@ function loadChatango(){
       fwtickm:1
     }
   });
-script.setAttribute("data-cfasync","false"); // opcional, mas recomendo
 script.style.width  = "100%";
 script.style.height = "100%";
 script.style.display = "block";
@@ -5601,15 +5684,22 @@ function openSettings(){
   };
 }
 
+let orkutWindow = null;
+
 function openOrkutApp(){
-  const win = createWindow({
+  if(orkutWindow){
+    orkutWindow.classList.remove('minimized');
+    bringToFront(orkutWindow);
+    return;
+  }
+
+  orkutWindow = createWindow({
     id: 'Orkut',
     title: 'Orkut',
-    w: 980,     // tamanho grande (pode mudar)
+    w: 980,
     h: 800,
     icon: '⌨️',
     build: (content)=>{
-      // opcional, mas recomendado p/ iframe ficar “colado” sem borda/padding
       content.style.padding = '0';
 
       const iframe = document.createElement('iframe');
@@ -5617,14 +5707,15 @@ function openOrkutApp(){
       iframe.style.width = '100%';
       iframe.style.height = '100%';
       iframe.style.border = 'none';
-iframe.style.zoom = '0.85';   // experimente 0.75–0.85 até o layout “desktop” aparecer
-
+      iframe.style.zoom = '0.85';
 
       content.appendChild(iframe);
     }
   });
 
-  return win;
+  orkutWindow._onClose = ()=>{
+    orkutWindow = null;
+  };
 }
 
 
@@ -5995,12 +6086,10 @@ document.querySelectorAll('.desktop-icon').forEach(icon=>{
   icon.addEventListener('dblclick', e=>{
     e.stopPropagation();
 
-    if(icon.id === 'filesIcon') {
-      openFiles(); // sua função de abrir app Arquivos
-    }
-    if(icon.id === 'arkadeIcon') {
-      openArkade(); // sua função de abrir app Jogos
-    }
+    if(icon.id === 'filesIcon')  openFiles();
+    if(icon.id === 'arkadeIcon') openArkade();
+    if(icon.id === 'orkutIcon')  openOrkutApp();
+    if(icon.id === 'chatIcon')   openChat();
   });
 });
 
@@ -6019,8 +6108,6 @@ desktopEl.addEventListener('mousedown', e=>{
 
     icon.classList.add('selected');
   }
-
-  draggingIcons = true;
 
   draggingIcons = true;
   dragStartX = e.clientX;
@@ -6250,12 +6337,10 @@ window.addEventListener('mousemove', e=>{
   if(!selBox) return;
 
   const taskbarHeight = parseInt(
-  getComputedStyle(document.documentElement).getPropertyValue('--taskbar-h')
-);
-
-const limitY = window.innerHeight - taskbarHeight;
-
-const clampedY = Math.min(e.clientY, limitY);
+    getComputedStyle(document.documentElement).getPropertyValue('--taskbar-h')
+  );
+  const limitY = window.innerHeight - taskbarHeight;
+  const clampedY = Math.min(e.clientY, limitY);
 
 const x = Math.min(e.clientX, selStartX);
 const y = Math.min(clampedY, selStartY);
@@ -6296,22 +6381,20 @@ window.addEventListener('mouseup', ()=>{
 });
 window.addEventListener("load", () => {
 
-  arkadeIcon.style.left = "20px"
-  arkadeIcon.style.top = "20px"
+  // Posições iniciais dos ícones do desktop
+  arkadeIcon.style.left = "20px";
+  arkadeIcon.style.top  = "20px";
 
-  filesIcon.style.left = "20px"
-  filesIcon.style.top = "130px"
+  filesIcon.style.left = "20px";
+  filesIcon.style.top  = "130px";
 
-  orkutIcon.style.left = "20px"
-  orkutIcon.style.top = "240px"
+  orkutIcon.style.left = "20px";
+  orkutIcon.style.top  = "240px";
 
-chatIcon.style.left = "20px";
-chatIcon.style.top  = "350px";
+  chatIcon.style.left = "20px";
+  chatIcon.style.top  = "350px";
 
-
-})
-window.addEventListener("load", ()=>{
-
+  // Boot screen
   const progress = document.getElementById("boot-progress");
   const status   = document.getElementById("boot-status");
   const boot     = document.getElementById("boot-screen");
