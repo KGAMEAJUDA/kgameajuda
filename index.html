@@ -3019,12 +3019,22 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
     function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 
     function layout(){
-      const m=24;
-      const cW=Math.floor(Math.min((view.w-m*2)/s.cols,(view.h-m*2)/s.rows));
-      s.cell=clamp(cW,14,34);
-      s.playW=s.cols*s.cell; s.playH=s.rows*s.cell;
-      s.offX=Math.floor((view.w-s.playW)/2);
-      s.offY=Math.floor((view.h-s.playH)/2);
+      const m=16;
+      const tcEl = document.getElementById('touch-controls');
+      const tcH = (tcEl && tcEl.offsetHeight > 0) ? tcEl.offsetHeight : 0;
+      const availW = view.w - m*2;
+      const availH = view.h - tcH - m*2;
+
+      // Portrait mode: use taller grid to fill screen better
+      const portrait = availH > availW;
+      s.cols = portrait ? 20 : 32;
+      s.rows = portrait ? 28 : 20;
+
+      const cW = Math.floor(Math.min(availW/s.cols, availH/s.rows));
+      s.cell = clamp(cW, 12, 34);
+      s.playW = s.cols*s.cell; s.playH = s.rows*s.cell;
+      s.offX = Math.floor((view.w - s.playW)/2);
+      s.offY = Math.floor((availH - s.playH)/2) + m;
     }
 
     function placeFood(){
@@ -3037,7 +3047,9 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
     }
 
     function initSnake(){
-      s.body=[{x:8,y:10},{x:7,y:10},{x:6,y:10}];
+      const startX = Math.floor(s.cols * 0.25);
+      const startY = Math.floor(s.rows / 2);
+      s.body=[{x:startX,y:startY},{x:startX-1,y:startY},{x:startX-2,y:startY}];
       s.dir={x:1,y:0}; s.nextDir={x:1,y:0};
       s.score=0; s.particles=[];
       placeFood();
@@ -3096,66 +3108,75 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
 
     function draw(dt){
       const w=view.w, h=view.h;
+      const mob=isMobile();
       ctx.clearRect(0,0,w,h);
 
-      // BG
-      const bg=ctx.createLinearGradient(0,0,w,h);
-      bg.addColorStop(0,'#0d0208'); bg.addColorStop(1,'#020008');
-      ctx.fillStyle=bg; ctx.fillRect(0,0,w,h);
+      // BG — solid color on mobile (no gradient)
+      ctx.fillStyle=mob?'#080105':'#0d0208';
+      ctx.fillRect(0,0,w,h);
 
       // Board
       ctx.save();
-      ctx.shadowColor='rgba(237,10,34,0.25)'; ctx.shadowBlur=20;
-      const brd=ctx.createLinearGradient(s.offX,s.offY,s.offX,s.offY+s.playH);
-      brd.addColorStop(0,'rgba(38,5,14,0.93)'); brd.addColorStop(1,'rgba(14,2,7,0.97)');
-      ctx.fillStyle=brd;
+      if(!mob){ctx.shadowColor='rgba(237,10,34,0.25)'; ctx.shadowBlur=20;}
+      ctx.fillStyle='rgba(28,4,12,0.95)';
       ctx.beginPath(); ctx.roundRect(s.offX-2,s.offY-2,s.playW+4,s.playH+4,10); ctx.fill();
-      const shn=ctx.createLinearGradient(s.offX,s.offY,s.offX,s.offY+s.playH*0.35);
-      shn.addColorStop(0,'rgba(255,255,255,0.055)'); shn.addColorStop(1,'rgba(255,255,255,0)');
-      ctx.fillStyle=shn; ctx.fill();
+      if(!mob){
+        const shn=ctx.createLinearGradient(s.offX,s.offY,s.offX,s.offY+s.playH*0.35);
+        shn.addColorStop(0,'rgba(255,255,255,0.055)'); shn.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle=shn; ctx.fill();
+      }
       ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=1; ctx.stroke();
       ctx.restore();
 
-      // Grid dots
-      ctx.fillStyle='rgba(255,255,255,0.035)';
-      for(let gx=0;gx<=s.cols;gx++) for(let gy=0;gy<=s.rows;gy++){
-        ctx.beginPath(); ctx.arc(s.offX+gx*s.cell,s.offY+gy*s.cell,0.7,0,Math.PI*2); ctx.fill();
+      // Grid dots — skip on mobile (expensive loop)
+      if(!mob){
+        ctx.fillStyle='rgba(255,255,255,0.035)';
+        for(let gx=0;gx<=s.cols;gx++) for(let gy=0;gy<=s.rows;gy++){
+          ctx.beginPath(); ctx.arc(s.offX+gx*s.cell,s.offY+gy*s.cell,0.7,0,Math.PI*2); ctx.fill();
+        }
       }
 
       // Food
       const fc=s.cell; const fx=s.offX+s.food.x*s.cell+fc/2, fy=s.offY+s.food.y*s.cell+fc/2;
       const fr=fc*0.30;
       ctx.save();
-      ctx.shadowColor='rgba(255,80,120,0.85)'; ctx.shadowBlur=14;
-      const fg=ctx.createRadialGradient(fx-fr*.25,fy-fr*.25,fr*.05,fx,fy,fr*1.3);
-      fg.addColorStop(0,'#ffaacc'); fg.addColorStop(0.5,'#ff3366'); fg.addColorStop(1,'rgba(200,0,50,0)');
-      ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(fx,fy,fr*1.4,0,Math.PI*2); ctx.fill();
-      ctx.fillStyle='#ff88aa'; ctx.beginPath(); ctx.arc(fx,fy,fr,0,Math.PI*2); ctx.fill();
+      if(!mob){ctx.shadowColor='rgba(255,80,120,0.85)'; ctx.shadowBlur=14;}
+      if(!mob){
+        const fg=ctx.createRadialGradient(fx-fr*.25,fy-fr*.25,fr*.05,fx,fy,fr*1.3);
+        fg.addColorStop(0,'#ffaacc'); fg.addColorStop(0.5,'#ff3366'); fg.addColorStop(1,'rgba(200,0,50,0)');
+        ctx.fillStyle=fg; ctx.beginPath(); ctx.arc(fx,fy,fr*1.4,0,Math.PI*2); ctx.fill();
+      }
+      ctx.fillStyle='#ff4466'; ctx.beginPath(); ctx.arc(fx,fy,fr,0,Math.PI*2); ctx.fill();
       ctx.restore();
 
-      // Snake body (draw tail→head so head is on top)
+      // Snake body
       const len=s.body.length;
       for(let i=len-1;i>=0;i--){
         const seg=s.body[i];
         const sx=s.offX+seg.x*s.cell+1, sy=s.offY+seg.y*s.cell+1;
         const sz=s.cell-2, rr=Math.max(3,sz*0.35);
-        const frac=i/(len-1||1); // 0=head, 1=tail
+        const frac=i/(len-1||1);
         const alpha=1-frac*0.5;
-        const r2=Math.round(255);
-        const g2=Math.round(80+frac*60);
-        const b2=Math.round(80+frac*60);
         ctx.save();
-        if(i===0){ctx.shadowColor='rgba(237,10,34,0.65)'; ctx.shadowBlur=12;}
-        const segG=ctx.createLinearGradient(sx,sy,sx+sz,sy+sz);
-        segG.addColorStop(0,`rgba(${r2},${g2},${b2},${alpha.toFixed(2)})`);
-        segG.addColorStop(1,`rgba(${Math.round(r2*.65)},${Math.round(g2*.4)},${Math.round(b2*.4)},${(alpha*.85).toFixed(2)})`);
-        ctx.fillStyle=segG;
-        ctx.beginPath(); ctx.roundRect(sx,sy,sz,sz,rr); ctx.fill();
-        const sh=ctx.createLinearGradient(sx,sy,sx,sy+sz*.5);
-        sh.addColorStop(0,`rgba(255,255,255,${(0.26-frac*0.16).toFixed(2)})`);
-        sh.addColorStop(1,'rgba(255,255,255,0)');
-        ctx.fillStyle=sh; ctx.fill();
-        ctx.strokeStyle=`rgba(255,255,255,${(0.15-frac*0.10).toFixed(2)})`; ctx.lineWidth=0.7; ctx.stroke();
+        if(mob){
+          // Mobile: flat colors, no gradients or shadows
+          const g2=Math.round(80+frac*60);
+          ctx.fillStyle=`rgba(255,${g2},${g2},${alpha.toFixed(2)})`;
+          ctx.beginPath(); ctx.roundRect(sx,sy,sz,sz,rr); ctx.fill();
+        } else {
+          if(i===0){ctx.shadowColor='rgba(237,10,34,0.65)'; ctx.shadowBlur=12;}
+          const r2=255, g2=Math.round(80+frac*60), b2=g2;
+          const segG=ctx.createLinearGradient(sx,sy,sx+sz,sy+sz);
+          segG.addColorStop(0,`rgba(${r2},${g2},${b2},${alpha.toFixed(2)})`);
+          segG.addColorStop(1,`rgba(${Math.round(r2*.65)},${Math.round(g2*.4)},${Math.round(b2*.4)},${(alpha*.85).toFixed(2)})`);
+          ctx.fillStyle=segG;
+          ctx.beginPath(); ctx.roundRect(sx,sy,sz,sz,rr); ctx.fill();
+          const sh=ctx.createLinearGradient(sx,sy,sx,sy+sz*.5);
+          sh.addColorStop(0,`rgba(255,255,255,${(0.26-frac*0.16).toFixed(2)})`);
+          sh.addColorStop(1,'rgba(255,255,255,0)');
+          ctx.fillStyle=sh; ctx.fill();
+          ctx.strokeStyle=`rgba(255,255,255,${(0.15-frac*0.10).toFixed(2)})`; ctx.lineWidth=0.7; ctx.stroke();
+        }
         ctx.restore();
 
         // Eyes on head
@@ -3314,15 +3335,19 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
     function drawCell(x,y,color,alpha){
       const px=t.ox+x*t.cellW, py2=t.oy+y*t.cellH;
       const w=t.cellW-1, h=t.cellH-1, r=Math.max(2,w*0.15);
+      const mob=isMobile();
       ctx.save(); ctx.globalAlpha=alpha??1;
-      ctx.shadowColor=color; ctx.shadowBlur=8;
-      const g=ctx.createLinearGradient(px,py2,px+w,py2+h);
-      g.addColorStop(0,color+'ee'); g.addColorStop(1,color+'88');
-      ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect(px,py2,w,h,r); ctx.fill();
-      // glass sheen
-      const sh=ctx.createLinearGradient(px,py2,px,py2+h*0.5);
-      sh.addColorStop(0,'rgba(255,255,255,0.38)'); sh.addColorStop(1,'rgba(255,255,255,0)');
-      ctx.fillStyle=sh; ctx.fill();
+      if(!mob){ctx.shadowColor=color; ctx.shadowBlur=8;}
+      ctx.fillStyle=color+'cc';
+      ctx.beginPath(); ctx.roundRect(px,py2,w,h,r); ctx.fill();
+      if(!mob){
+        const g=ctx.createLinearGradient(px,py2,px+w,py2+h);
+        g.addColorStop(0,color+'ee'); g.addColorStop(1,color+'88');
+        ctx.fillStyle=g; ctx.fill();
+        const sh=ctx.createLinearGradient(px,py2,px,py2+h*0.5);
+        sh.addColorStop(0,'rgba(255,255,255,0.38)'); sh.addColorStop(1,'rgba(255,255,255,0)');
+        ctx.fillStyle=sh; ctx.fill();
+      }
       ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=0.8; ctx.stroke();
       ctx.restore();
     }
@@ -3343,10 +3368,12 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
       ctx.strokeStyle='rgba(255,255,255,0.10)'; ctx.lineWidth=1; ctx.stroke();
       ctx.restore();
 
-      // Grid lines
-      ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=0.5;
-      for(let c=1;c<COLS;c++){ctx.beginPath();ctx.moveTo(t.ox+c*t.cellW,t.oy);ctx.lineTo(t.ox+c*t.cellW,t.oy+t.boardH);ctx.stroke();}
-      for(let r=1;r<ROWS;r++){ctx.beginPath();ctx.moveTo(t.ox,t.oy+r*t.cellH);ctx.lineTo(t.ox+t.boardW,t.oy+r*t.cellH);ctx.stroke();}
+      // Grid lines — skip on mobile
+      if(!isMobile()){
+        ctx.strokeStyle='rgba(255,255,255,0.04)'; ctx.lineWidth=0.5;
+        for(let c=1;c<COLS;c++){ctx.beginPath();ctx.moveTo(t.ox+c*t.cellW,t.oy);ctx.lineTo(t.ox+c*t.cellW,t.oy+t.boardH);ctx.stroke();}
+        for(let r=1;r<ROWS;r++){ctx.beginPath();ctx.moveTo(t.ox,t.oy+r*t.cellH);ctx.lineTo(t.ox+t.boardW,t.oy+r*t.cellH);ctx.stroke();}
+      }
 
       // Ghost piece
       let ghostY=t.py;
@@ -3718,7 +3745,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
 
       // Ball — glowing glass orb
       ctx.save();
-      ctx.shadowColor='rgba(255,150,200,0.9)'; ctx.shadowBlur=20;
+      if(!isMobile()){ctx.shadowColor='rgba(255,150,200,0.9)'; ctx.shadowBlur=20;}
       const bg2=ctx.createRadialGradient(p.ballX-p.ballR*.35,p.ballY-p.ballR*.35,p.ballR*.1,p.ballX,p.ballY,p.ballR*1.2);
       bg2.addColorStop(0,'#fff'); bg2.addColorStop(0.4,'#ffaabb'); bg2.addColorStop(1,'rgba(200,30,80,0)');
       ctx.fillStyle=bg2; ctx.beginPath(); ctx.arc(p.ballX,p.ballY,p.ballR*1.5,0,Math.PI*2); ctx.fill();
@@ -3922,7 +3949,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
       ctx.restore();
 
       // Glass body
-      ctx.shadowColor='rgba(100,200,120,0.7)'; ctx.shadowBlur=14;
+      if(!isMobile()){ctx.shadowColor='rgba(100,200,120,0.7)'; ctx.shadowBlur=14;}
       const bodyG=ctx.createLinearGradient(0,S*0.32,S*0.72,S*0.85);
       bodyG.addColorStop(0,'rgba(120,220,150,0.95)'); bodyG.addColorStop(1,'rgba(40,140,70,0.9)');
       ctx.fillStyle=bodyG;
@@ -4175,7 +4202,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
       // revealed
       if(cell.mine&&m.over){
         // mine — red glass
-        ctx.shadowColor='rgba(255,50,50,0.8)'; ctx.shadowBlur=12;
+        if(!isMobile()){ctx.shadowColor='rgba(255,50,50,0.8)'; ctx.shadowBlur=12;}
         const g=ctx.createLinearGradient(px,py,px+sz,py+sz);
         g.addColorStop(0,'rgba(220,60,60,0.95)'); g.addColorStop(1,'rgba(140,20,20,0.9)');
         ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect(px,py,sz,sz,r); ctx.fill();
@@ -4198,7 +4225,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
       }
     } else if(cell.flag){
       // flagged — glass with flag
-      ctx.shadowColor='rgba(255,160,0,0.6)'; ctx.shadowBlur=10;
+      if(!isMobile()){ctx.shadowColor='rgba(255,160,0,0.6)'; ctx.shadowBlur=10;}
       const g=ctx.createLinearGradient(px,py,px+sz,py+sz);
       g.addColorStop(0,'rgba(60,30,5,0.95)'); g.addColorStop(1,'rgba(30,12,0,0.9)');
       ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect(px,py,sz,sz,r); ctx.fill();
@@ -4210,7 +4237,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
       ctx.fillText('🚩',px+sz/2,py+sz/2);
     } else {
       // unrevealed — raised glass
-      ctx.shadowColor='rgba(180,80,255,0.2)'; ctx.shadowBlur=6;
+      if(!isMobile()){ctx.shadowColor='rgba(180,80,255,0.2)'; ctx.shadowBlur=6;}
       const g=ctx.createLinearGradient(px,py,px+sz,py+sz);
       g.addColorStop(0,'rgba(50,15,70,0.92)'); g.addColorStop(1,'rgba(25,5,40,0.95)');
       ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect(px,py,sz,sz,r); ctx.fill();
@@ -4398,7 +4425,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
       if(!bk.alive) return;
       const x=b.ox+bk.c*(b.bw+b.bgap), y=b.oy+bk.r*(b.bh+b.bgap);
       ctx.save();
-      ctx.shadowColor=bk.color; ctx.shadowBlur=8;
+      if(!isMobile()){ctx.shadowColor=bk.color; ctx.shadowBlur=8;}
       const g=ctx.createLinearGradient(x,y,x,y+b.bh);
       g.addColorStop(0,bk.color+'ee'); g.addColorStop(1,bk.color+'77');
       ctx.fillStyle=g; ctx.beginPath(); ctx.roundRect(x,y,b.bw,b.bh,3); ctx.fill();
@@ -4543,7 +4570,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
   function drawBird(x,y,r){
     ctx.save(); ctx.translate(x,y);
     const ang=clamp(f.bvy/800,-0.5,0.8); ctx.rotate(ang);
-    ctx.shadowColor='rgba(237,10,34,0.6)'; ctx.shadowBlur=10;
+    if(!isMobile()){ctx.shadowColor='rgba(237,10,34,0.6)'; ctx.shadowBlur=10;}
     const bg=ctx.createRadialGradient(-r*.3,-r*.3,1,0,0,r*1.2);
     bg.addColorStop(0,'#ff8888'); bg.addColorStop(1,'#cc0000');
     ctx.fillStyle=bg; ctx.beginPath(); ctx.ellipse(0,0,r,r*.85,0,0,Math.PI*2); ctx.fill();
@@ -4715,7 +4742,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
     // Asteroids
     a.asteroids.forEach(ast=>{
       ctx.save(); ctx.translate(ast.x,ast.y); ctx.rotate(ast.rot);
-      ctx.shadowColor='rgba(237,10,34,0.4)'; ctx.shadowBlur=8;
+      if(!isMobile()){ctx.shadowColor='rgba(237,10,34,0.4)'; ctx.shadowBlur=8;}
       const g=ctx.createLinearGradient(-ast.r,-ast.r,ast.r,ast.r);
       g.addColorStop(0,'rgba(180,60,60,0.9)'); g.addColorStop(1,'rgba(80,10,10,0.85)');
       ctx.strokeStyle='rgba(255,100,100,0.6)'; ctx.lineWidth=1.5;
@@ -4740,7 +4767,7 @@ canvas.style.height = 'calc(100% - ' + HUD_H + 'px)';
     const s=a.ship;
     if(a.invincible<=0||Math.floor(a.invincible*8)%2===0){
       ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.angle);
-      ctx.shadowColor='rgba(180,220,255,0.8)'; ctx.shadowBlur=14;
+      if(!isMobile()){ctx.shadowColor='rgba(180,220,255,0.8)'; ctx.shadowBlur=14;}
       const sg=ctx.createLinearGradient(-10,0,16,0);
       sg.addColorStop(0,'rgba(220,240,255,0.95)'); sg.addColorStop(1,'rgba(100,160,220,0.85)');
       ctx.fillStyle=sg;
@@ -5428,14 +5455,13 @@ function _buildTouchControlsGlobal(gameKey, touchEl, stageEl){
   const cfg=TOUCH_CONFIGS_G[gameKey];
   if(!cfg) return;
 
-  touchEl.style.display='block';
+  touchEl.style.display='flex';
 
-  // Fix game-stage layout so controls go below canvas
+  // game-stage is already position:absolute;inset:0 from CSS
+  // Just ensure it's flex column so touch-controls sits below canvas
   if(stageEl){
     stageEl.style.display='flex';
     stageEl.style.flexDirection='column';
-    stageEl.style.position='absolute';
-    stageEl.style.inset='0';
   }
 
   // Trigger canvas resize now that the layout has changed
