@@ -2580,6 +2580,520 @@ body.crt-on #desktop::after{
 }
 .social-btn:hover{transform:translateY(-4px) scale(1.05);box-shadow:0 12px 26px rgba(237,10,34,.8);}
 .social-btn:active{transform:scale(.94);}
+/* ===================================================
+   WIDGET SYSTEM — KgameOS
+   =================================================== */
+
+/* ── Widget picker popup ── */
+#widget-picker {
+  position: fixed;
+  bottom: calc(var(--taskbar-h) + 10px);
+  width: 320px;
+  padding: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.18), transparent 45%),
+    linear-gradient(180deg, rgba(120,0,0,.92), rgba(18,0,0,.97));
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.20);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.28),
+    0 24px 60px rgba(0,0,0,.85);
+  z-index: 40000;
+  opacity: 0;
+  transform: translateY(16px) scale(.97);
+  pointer-events: none;
+  visibility: hidden;
+  transition:
+    opacity .3s cubic-bezier(.22,1,.36,1),
+    transform .3s cubic-bezier(.22,1,.36,1);
+}
+#widget-picker.open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+  visibility: visible;
+}
+.wp-title {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 2.5px;
+  color: rgba(255,255,255,.4);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.wp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.wp-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 72px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .4px;
+  color: rgba(255,255,255,.85);
+  background:
+    linear-gradient(160deg, rgba(255,255,255,.16), rgba(255,255,255,.04) 50%, rgba(180,0,0,.18));
+  border: 1px solid rgba(255,255,255,.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.22),
+    0 4px 12px rgba(0,0,0,.5);
+  transition: transform .14s, box-shadow .14s, filter .14s;
+  user-select: none;
+}
+.wp-tile:hover {
+  transform: translateY(-2px) scale(1.04);
+  filter: brightness(1.2);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.35),
+    0 8px 20px rgba(0,0,0,.65),
+    0 0 16px rgba(237,10,34,.2);
+}
+.wp-tile:active { transform: scale(.95); filter: brightness(.9); }
+.wp-tile-ico { font-size: 22px; }
+
+/* ── Base widget shell ── */
+.kg-widget {
+  position: absolute;
+  z-index: 25;
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 14px 36px rgba(0,0,0,.7),
+    0 0 0 1px rgba(0,0,0,.3);
+  overflow: hidden;
+  cursor: default;
+  user-select: none;
+  transition: box-shadow .2s;
+}
+.kg-widget:hover {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.3),
+    0 20px 50px rgba(0,0,0,.8),
+    0 0 24px rgba(237,10,34,.15);
+}
+.kg-widget-drag {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 28px;
+  cursor: move;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 8px;
+}
+.kg-widget-close {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(circle at top left,#ffb3b3,#ff2a2a 55%,#6b0000);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.55), 0 1px 4px rgba(0,0,0,.6);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform .1s;
+}
+.kg-widget-close:hover { transform: scale(1.2); }
+.kg-widget-dots {
+  display: none;
+}
+
+/* ── CLOCK widget ── */
+.w-clock {
+  width: 180px;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.20), transparent 50%),
+    linear-gradient(180deg, rgba(100,0,0,.88), rgba(14,0,0,.95));
+}
+.w-clock-body {
+  padding: 6px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.w-clock-time {
+  font-size: 38px;
+  font-weight: 200;
+  letter-spacing: -2px;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(237,10,34,.6), 0 2px 8px rgba(0,0,0,.8);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.w-clock-seconds {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: rgba(255,120,120,.7);
+  font-variant-numeric: tabular-nums;
+}
+.w-clock-date {
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,.45);
+  margin-top: 4px;
+}
+.w-clock-day {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: rgba(255,255,255,.3);
+  text-transform: uppercase;
+}
+
+/* ── MUSIC (now-playing) widget ── */
+.w-music {
+  width: 220px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(255,255,255,.22), transparent 45%),
+    linear-gradient(180deg, rgba(0,80,160,.88), rgba(0,10,40,.95));
+}
+.w-music-body {
+  padding: 6px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.w-music-cover {
+  width: 100%;
+  height: 90px;
+  border-radius: 10px;
+  background:
+    linear-gradient(135deg, rgba(0,100,200,.5), rgba(0,20,80,.8));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  overflow: hidden;
+  position: relative;
+}
+.w-music-cover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.12) 0%, rgba(255,255,255,0) 55%);
+  border-radius: inherit;
+}
+.w-music-vinyl {
+  width: 60px; height: 60px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,.18) 0%, rgba(255,255,255,0) 30%),
+    conic-gradient(#1a0000, #3a0808, #1a0000, #2a0404, #1a0000);
+  border: 2px solid rgba(255,255,255,.1);
+  display: flex; align-items: center; justify-content: center;
+  animation: vinylSpin 4s linear infinite;
+  animation-play-state: paused;
+  transition: box-shadow .2s;
+}
+.w-music-cover:hover .w-music-vinyl {
+  box-shadow: 0 0 18px rgba(100,180,255,.6);
+}
+.w-music-vinyl.spinning { animation-play-state: running; }
+.w-music-vinyl::after {
+  content: '';
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,.6), rgba(255,255,255,.2));
+}
+@keyframes vinylSpin { to { transform: rotate(360deg); } }
+
+.w-music-info { min-width: 0; }
+.w-music-track {
+  font-size: 11px; font-weight: 800;
+  color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  letter-spacing: .3px;
+}
+.w-music-status {
+  font-size: 10px; letter-spacing: 2px;
+  color: rgba(120,200,255,.6);
+  margin-top: 2px;
+}
+.w-music-progress-wrap {
+  height: 3px;
+  background: rgba(255,255,255,.12);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+.w-music-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, rgba(100,180,255,.9), rgba(60,140,255,.6));
+  border-radius: 999px;
+  width: 0%;
+  transition: width 1s linear;
+}
+.w-music-controls {
+  display: flex; gap: 6px; justify-content: center;
+}
+.w-music-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(160deg, rgba(255,255,255,.18), rgba(0,0,0,.25));
+  border: 1px solid rgba(255,255,255,.18);
+  color: #fff; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 6px rgba(0,0,0,.5);
+  transition: filter .12s, transform .1s;
+}
+.w-music-btn:hover { filter: brightness(1.35); }
+.w-music-btn:active { transform: scale(.88); }
+.w-music-btn.play-btn {
+  width: 100%; height: 40px;
+  border-radius: 10px;
+  font-size: 17px;
+  background: linear-gradient(180deg, rgba(100,180,255,.85), rgba(30,90,180,.9));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 0 14px rgba(80,160,255,.5), 0 2px 8px rgba(0,0,0,.5);
+}
+
+/* ── WEATHER widget ── */
+.w-weather {
+  width: 190px;
+  background:
+    radial-gradient(circle at 60% 20%, rgba(255,200,80,.18), transparent 55%),
+    linear-gradient(180deg, rgba(0,60,120,.90), rgba(0,10,30,.96));
+}
+.w-weather-body {
+  padding: 6px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.w-weather-top {
+  display: flex; align-items: center; gap: 8px;
+}
+.w-weather-icon { font-size: 40px; line-height: 1; filter: drop-shadow(0 2px 8px rgba(255,200,80,.5)); }
+.w-weather-temp {
+  font-size: 36px;
+  font-weight: 200;
+  letter-spacing: -2px;
+  color: #fff;
+  text-shadow: 0 0 14px rgba(255,200,80,.4);
+}
+.w-weather-city {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: rgba(255,255,255,.6);
+  text-transform: uppercase;
+}
+.w-weather-desc {
+  font-size: 11px;
+  color: rgba(255,200,120,.7);
+  letter-spacing: .5px;
+}
+.w-weather-row {
+  display: flex; gap: 10px; margin-top: 6px;
+}
+.w-weather-mini {
+  flex: 1;
+  background: rgba(255,255,255,.07);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 10px;
+  color: rgba(255,255,255,.5);
+  letter-spacing: .5px;
+}
+.w-weather-mini strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,.85);
+  margin-bottom: 2px;
+}
+
+/* ── STICKY NOTE widget ── */
+.w-note {
+  width: 200px;
+  background:
+    radial-gradient(circle at top left, rgba(255,240,80,.25), transparent 50%),
+    linear-gradient(180deg, rgba(180,130,0,.85), rgba(90,60,0,.92));
+}
+.w-note-body {
+  padding: 6px 12px 12px;
+}
+.w-note-textarea {
+  width: 100%;
+  min-height: 90px;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  color: rgba(255,255,255,.9);
+  font-size: 12px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  line-height: 1.6;
+  letter-spacing: .2px;
+  caret-color: rgba(255,240,80,.9);
+}
+.w-note-textarea::placeholder { color: rgba(255,255,255,.3); }
+.w-note-footer {
+  margin-top: 6px;
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,.3);
+  display: flex; justify-content: space-between;
+}
+
+/* ── IMAGE widget ── */
+.w-image {
+  width: 200px;
+  background: #0a0a0a;
+  cursor: pointer;
+  border: 3px solid rgba(255,255,255,.45) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.3),
+    0 14px 36px rgba(0,0,0,.7),
+    0 0 0 1px rgba(0,0,0,.3);
+}
+/* full-bleed image fills the widget entirely */
+.w-image-frame {
+  width: 100%;
+  height: 180px;
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(50,0,0,.8), rgba(10,0,0,.95));
+}
+.w-image-frame img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: contain;
+  transition: transform .4s ease, filter .3s ease;
+  display: block;
+}
+/* decorative inner border / glow on hover */
+.w-image-frame::after {
+  content: '';
+  position: absolute; inset: 0;
+  border: 2px solid rgba(237,10,34,.35);
+  border-radius: 0;
+  pointer-events: none;
+  transition: border-color .25s, box-shadow .25s;
+}
+.w-image:hover .w-image-frame img { transform: scale(1.06); filter: brightness(1.08); }
+.w-image:hover .w-image-frame::after {
+  border-color: rgba(237,10,34,.7);
+  box-shadow: inset 0 0 20px rgba(237,10,34,.2);
+}
+/* subtle "click to change" hint at bottom */
+.w-image-hint {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 18px 10px 8px;
+  background: linear-gradient(to top, rgba(0,0,0,.75) 0%, transparent 100%);
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: rgba(255,255,255,.55);
+  text-align: center;
+  text-transform: uppercase;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .25s;
+}
+.w-image:hover .w-image-hint { opacity: 1; }
+
+/* ── CALENDAR MINI widget ── */
+.w-calendar {
+  width: 270px;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,.16), transparent 45%),
+    linear-gradient(180deg, rgba(60,0,100,.88), rgba(10,0,20,.96));
+}
+.w-calendar-body { padding: 32px 14px 14px; margin-top: 0; }
+.w-cal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.w-cal-month { font-size: 13px; font-weight: 800; color: #fff; letter-spacing: 1px; }
+.w-cal-nav {
+  width: 28px; height: 28px;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 8px;
+  color: rgba(255,255,255,.85);
+  cursor: pointer;
+  font-size: 15px;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .12s;
+}
+.w-cal-nav:hover { background: rgba(255,255,255,.22); }
+.w-cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 3px; text-align: center;
+}
+.w-cal-day-name { font-size: 9px; letter-spacing: 1px; color: rgba(255,255,255,.35); padding: 3px 0; font-weight: 700; }
+.w-cal-cell {
+  font-size: 11px;
+  padding: 5px 0;
+  border-radius: 6px;
+  color: rgba(255,255,255,.65);
+  cursor: default;
+  transition: background .1s;
+}
+.w-cal-cell:hover { background: rgba(255,255,255,.09); }
+.w-cal-cell.today {
+  background: linear-gradient(180deg, rgba(180,0,180,.85), rgba(100,0,100,.9));
+  color: #fff;
+  font-weight: 800;
+  box-shadow: 0 0 8px rgba(200,0,200,.5);
+}
+.w-cal-cell.other-month { opacity: .22; }
+
+/* ── PERF / SYSTEM widget ── */
+.w-perf {
+  width: 200px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(0,255,100,.12), transparent 50%),
+    linear-gradient(180deg, rgba(0,60,20,.9), rgba(0,10,5,.96));
+}
+.w-perf-body { padding: 32px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.w-perf-label {
+  font-size: 9px; letter-spacing: 2.5px;
+  color: rgba(255,255,255,.35); text-transform: uppercase; font-weight: 800;
+}
+.w-perf-bar-wrap {
+  height: 6px; border-radius: 999px;
+  background: rgba(255,255,255,.1); overflow: hidden; margin-top: 2px;
+}
+.w-perf-bar {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, rgba(0,220,80,.85), rgba(0,180,60,.6));
+  box-shadow: 0 0 8px rgba(0,220,80,.4);
+  transition: width 1.2s ease;
+}
+.w-perf-val {
+  font-size: 12px; font-weight: 700;
+  color: rgba(0,220,80,.9);
+  text-shadow: 0 0 8px rgba(0,220,80,.5);
+  letter-spacing: .5px;
+}
+.w-perf-row { display: flex; align-items: baseline; justify-content: space-between; }
+.w-perf-uptime { font-size: 10px; color: rgba(255,255,255,.3); letter-spacing: 1px; margin-top: 4px; }
+
+/* ── Widget drag glow ── */
+.kg-widget.widget-dragging {
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.35),
+    0 28px 70px rgba(0,0,0,.9),
+    0 0 28px rgba(237,10,34,.3) !important;
+  opacity: .9;
+  transition: none;
+}
+
+/* ── Mobile: hide widget button ── */
+@media (max-width: 768px) {
+  #task-widgets, #widget-picker { display: none !important; }
+}
 </style>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/aplayer@1.10.1/dist/APlayer.min.css">
 <script src="https://cdn.jsdelivr.net/npm/aplayer@1.10.1/dist/APlayer.min.js"></script>
@@ -2734,6 +3248,40 @@ body.crt-on #desktop::after{
     </div>
 
 
+<!-- ===== WIDGET PICKER POPUP ===== -->
+<div id="widget-picker">
+  <div class="wp-title">Adicionar Widget</div>
+  <div class="wp-grid">
+    <div class="wp-tile" data-widget="clock">
+      <span class="wp-tile-ico">🕐</span>
+      <span>Relógio</span>
+    </div>
+    <div class="wp-tile" data-widget="music">
+      <span class="wp-tile-ico">🎵</span>
+      <span>Música</span>
+    </div>
+    <div class="wp-tile" data-widget="weather">
+      <span class="wp-tile-ico">🌤️</span>
+      <span>Clima</span>
+    </div>
+    <div class="wp-tile" data-widget="note">
+      <span class="wp-tile-ico">📝</span>
+      <span>Nota</span>
+    </div>
+    <div class="wp-tile" data-widget="image">
+      <span class="wp-tile-ico">🖼️</span>
+      <span>Imagem</span>
+    </div>
+    <div class="wp-tile" data-widget="calendar">
+      <span class="wp-tile-ico">📅</span>
+      <span>Calendário</span>
+    </div>
+    <div class="wp-tile" data-widget="perf">
+      <span class="wp-tile-ico">💻</span>
+      <span>Sistema</span>
+    </div>
+  </div>
+</div>
  <div id="taskbar">
   <div id="start-button"></div>
   <div id="task-items"></div>
@@ -2741,6 +3289,7 @@ body.crt-on #desktop::after{
   <div id="task-spacer"></div> <!-- empurra tudo pra direita -->
 
 <div id="task-nowplaying"></div>
+<button id="task-widgets" class="tray-btn" title="Widgets"><svg class="vol-svg" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1.5" fill="none" stroke="currentColor" stroke-width="2"/></svg></button>
 <button id="task-wifi" class="tray-btn" title="Internet">
   <svg class="vol-svg" viewBox="0 0 24 24" aria-hidden="true">
     <path d="M12 18.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z" fill="currentColor"></path>
@@ -6847,6 +7396,20 @@ window.kgAPlayer = ap;
 const raw = localStorage.getItem("kgMasterVol");
 const v = raw === null ? 0.9 : Number(raw);
 if(Number.isFinite(v)) ap.volume(Math.max(0, Math.min(1, v)), true);
+
+// ▶ se o widget pediu para tocar a última rádio, faz isso automaticamente
+if(window.kgAutoPlayPending && window.kgAutoPlayPending.url){
+  const pending = window.kgAutoPlayPending;
+  window.kgAutoPlayPending = null;
+  setTimeout(()=>{
+    try{
+      ap.list.clear();
+      ap.list.add([{ name: pending.name, artist: 'Radio Browser', url: pending.url, cover: 'sound.gif' }]);
+      ap.play();
+      setTaskbarNowPlaying(`🎵 ${pending.name} ● AO VIVO`);
+    }catch(_){}
+  }, 200);
+}
 ap.on('play', ()=>{
   const cur = ap.list?.audios?.[ap.list.index];
   if(cur?.name){
@@ -6920,6 +7483,9 @@ results.style.display = 'block';
 
   ap.play();
 
+  // 💾 salva a última rádio tocada para o widget
+  window.kgLastRadio = { name: r.name, url: r.url_resolved };
+
   // 🔴 atualiza indicador da taskbar
   setTaskbarNowPlaying(`🎵 ${r.name} ● AO VIVO`);
 
@@ -6954,6 +7520,7 @@ const prevCleanup = win._cleanup;
 win._cleanup = ()=>{
   // ✅ limpa o indicador da taskbar ao fechar o app
   setTaskbarNowPlaying('');
+  window.kgAPlayer = null;
   try{ ap.destroy(); }catch(_){}
   if(prevCleanup) prevCleanup();
 };
@@ -8762,7 +9329,458 @@ window.addEventListener("load", () => {
     }, true);
   }
 })();
+// =====================================================
+// WIDGET SYSTEM — KgameOS
+// =====================================================
+(function setupWidgets(){
 
+  const desktop = document.getElementById('desktop');
+  let widgetZ = 25;
+
+  // ── Picker toggle ──────────────────────────────────
+  const widgetBtn = document.getElementById('task-widgets');
+  const picker    = document.getElementById('widget-picker');
+  if(!widgetBtn || !picker) return;
+
+  function positionPicker(){
+    const r = widgetBtn.getBoundingClientRect();
+    const w = picker.offsetWidth || 320;
+    let left = r.left + r.width / 2 - w / 2;
+    left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+    picker.style.left = left + 'px';
+  }
+
+  widgetBtn.addEventListener('click', e=>{
+    e.stopPropagation();
+    closeAllTrayPopups();
+    picker.classList.toggle('open');
+    if(picker.classList.contains('open')) positionPicker();
+  });
+
+  document.addEventListener('click', e=>{
+    if(picker.classList.contains('open') &&
+       !picker.contains(e.target) &&
+       !widgetBtn.contains(e.target)){
+      picker.classList.remove('open');
+    }
+  });
+
+  function closeAllTrayPopups(){
+    ['task-wifi-popup','task-volume-popup','task-calendar']
+      .forEach(id => document.getElementById(id)?.classList.remove('open'));
+  }
+
+  // ── Widget drag ────────────────────────────────────
+  const wDrag = { active:false, el:null, ox:0, oy:0 };
+
+  document.addEventListener('mousemove', e=>{
+    if(!wDrag.active || !wDrag.el) return;
+    const taskH = parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--taskbar-h')) || 48;
+    let nx = e.clientX - wDrag.ox;
+    let ny = e.clientY - wDrag.oy;
+    nx = Math.max(0, Math.min(nx, window.innerWidth - wDrag.el.offsetWidth));
+    ny = Math.max(0, Math.min(ny, window.innerHeight - taskH - wDrag.el.offsetHeight));
+    wDrag.el.style.left = nx + 'px';
+    wDrag.el.style.top  = ny + 'px';
+  });
+  document.addEventListener('mouseup', ()=>{
+    if(wDrag.active && wDrag.el){
+      wDrag.el.classList.remove('widget-dragging');
+    }
+    wDrag.active = false;
+    wDrag.el = null;
+  });
+
+  function makeWidgetDraggable(widget, handle){
+    handle.addEventListener('mousedown', e=>{
+      if(e.button !== 0) return;
+      e.stopPropagation();
+      widgetZ = Math.min(widgetZ + 1, 150);
+      widget.style.zIndex = widgetZ;
+      wDrag.active = true;
+      wDrag.el = widget;
+      wDrag.ox = e.clientX - widget.offsetLeft;
+      wDrag.oy = e.clientY - widget.offsetTop;
+      widget.classList.add('widget-dragging');
+    });
+    widget.addEventListener('mousedown', ()=>{
+      widgetZ = Math.min(widgetZ + 1, 150);
+      widget.style.zIndex = widgetZ;
+    });
+  }
+
+  // ── Shared widget shell ────────────────────────────
+  function createWidgetShell(extra=''){
+    const w = document.createElement('div');
+    w.className = 'kg-widget';
+    widgetZ = Math.min(widgetZ + 1, 150);
+    w.style.zIndex = widgetZ;
+    w.style.left = (80 + Math.random()*200) + 'px';
+    w.style.top  = (60 + Math.random()*120) + 'px';
+    w.innerHTML = `
+      <div class="kg-widget-drag" data-drag="1">
+        <div class="kg-widget-dots"><span></span><span></span><span></span></div>
+        <div class="kg-widget-close" data-close="1"></div>
+      </div>
+      ${extra}
+    `;
+    w.querySelector('[data-close]').addEventListener('click', ()=> w.remove());
+    makeWidgetDraggable(w, w.querySelector('[data-drag]'));
+    desktop.appendChild(w);
+    return w;
+  }
+
+  // ══════════════════════════════════════════════════
+  // WIDGET BUILDERS
+  // ══════════════════════════════════════════════════
+
+  // ── 1. CLOCK ──────────────────────────────────────
+  function addClock(){
+    const w = createWidgetShell(`
+      <div class="w-clock-body">
+        <div class="w-clock-time" id="wc-time-${Date.now()}"></div>
+        <div class="w-clock-seconds" id="wc-sec-${Date.now()}"></div>
+        <div class="w-clock-date"   id="wc-date-${Date.now()}"></div>
+        <div class="w-clock-day"    id="wc-day-${Date.now()}"></div>
+      </div>
+    `);
+    w.classList.add('w-clock');
+    const uid = w.querySelectorAll('[id]');
+    const timeEl = uid[0], secEl = uid[1], dateEl = uid[2], dayEl = uid[3];
+    const DAYS = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+    const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    function tick(){
+      const n = new Date();
+      const h = String(n.getHours()).padStart(2,'0');
+      const m = String(n.getMinutes()).padStart(2,'0');
+      const s = String(n.getSeconds()).padStart(2,'0');
+      timeEl.textContent = h + ':' + m;
+      secEl.textContent  = s;
+      dateEl.textContent = n.getDate() + ' ' + MONTHS[n.getMonth()] + ' ' + n.getFullYear();
+      dayEl.textContent  = DAYS[n.getDay()];
+    }
+    tick();
+    const iv = setInterval(()=>{ if(!document.body.contains(w)) return clearInterval(iv); tick(); }, 1000);
+    return w;
+  }
+
+  // ── 2. MUSIC (mirrors APlayer state) ──────────────
+  function addMusic(){
+    const id = 'wm-' + Date.now();
+    const w = createWidgetShell(`
+      <div class="w-music-body">
+        <div class="w-music-cover">
+          <div class="w-music-vinyl" id="${id}-vinyl"></div>
+        </div>
+        <div class="w-music-info">
+          <div class="w-music-track" id="${id}-track">Nenhuma música</div>
+          <div class="w-music-status" id="${id}-status">PARADO</div>
+          <div class="w-music-progress-wrap">
+            <div class="w-music-progress-bar" id="${id}-prog"></div>
+          </div>
+        </div>
+        <div class="w-music-controls">
+          <button class="w-music-btn play-btn" id="${id}-play" title="Play/Pause">▶</button>
+        </div>
+      </div>
+    `);
+    w.classList.add('w-music');
+
+    const trackEl  = document.getElementById(id+'-track');
+    const statusEl = document.getElementById(id+'-status');
+    const progEl   = document.getElementById(id+'-prog');
+    const playBtn  = document.getElementById(id+'-play');
+    const vinyl    = document.getElementById(id+'-vinyl');
+
+    let progAnim = 0;
+    function syncState(){
+      const ap = window.kgAPlayer;
+      if(!ap){ trackEl.textContent = 'Abra o app Música'; statusEl.textContent = ''; return; }
+      const audio = ap.list?.audios?.[ap.list?.index];
+      if(audio){ trackEl.textContent = audio.name || 'Rádio'; }
+      const paused = ap.audio?.paused !== false;
+      statusEl.textContent = paused ? 'PARADO' : '● AO VIVO';
+      playBtn.textContent  = paused ? '▶' : '⏸';
+      if(paused){ vinyl.classList.remove('spinning'); } else { vinyl.classList.add('spinning'); }
+      if(!paused){
+        progAnim = (progAnim + 0.4) % 100;
+        progEl.style.width = progAnim + '%';
+      }
+    }
+    const iv2 = setInterval(()=>{ if(!document.body.contains(w)) return clearInterval(iv2); syncState(); }, 500);
+    syncState();
+
+    // click on the vinyl / cover area → open (or focus) the music app
+    const coverEl = w.querySelector('.w-music-cover');
+    if(coverEl){
+      coverEl.style.cursor = 'pointer';
+      coverEl.title = 'Abrir app Música';
+      coverEl.addEventListener('click', e=>{
+        e.stopPropagation();
+        try{ openMusic(); }catch(_){}
+      });
+    }
+
+    playBtn.addEventListener('click', ()=>{
+      const ap = window.kgAPlayer;
+      if(!ap){
+        // app fechado — reabre e toca a última rádio se houver
+        if(window.kgLastRadio){
+          window.kgAutoPlayPending = window.kgLastRadio;
+        }
+        try{ openMusic(); }catch(_){}
+        return;
+      }
+      ap.audio?.paused !== false ? ap.play() : ap.pause();
+    });
+    return w;
+  }
+
+  // ── 3. WEATHER (decorativo / estético) ────────────
+  const WEATHERS = [
+    { icon:'☀️', temp:28, desc:'Ensolarado',     wind:'12 km/h', humidity:'38%' },
+    { icon:'⛅', temp:22, desc:'Parcialmente nublado', wind:'18 km/h', humidity:'55%' },
+    { icon:'🌧️', temp:17, desc:'Chuva leve',     wind:'22 km/h', humidity:'82%' },
+    { icon:'🌩️', temp:14, desc:'Tempestade',     wind:'45 km/h', humidity:'91%' },
+    { icon:'❄️', temp:2,  desc:'Neve',            wind:'8 km/h',  humidity:'70%' },
+    { icon:'🌫️', temp:19, desc:'Nublado',        wind:'6 km/h',  humidity:'65%' },
+  ];
+  function addWeather(){
+    const pick = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
+    const w = createWidgetShell(`
+      <div class="w-weather-body">
+        <div class="w-weather-city">sua cidade</div>
+        <div class="w-weather-top">
+          <div class="w-weather-icon">${pick.icon}</div>
+          <div class="w-weather-temp">${pick.temp}°</div>
+        </div>
+        <div class="w-weather-desc">${pick.desc}</div>
+        <div class="w-weather-row">
+          <div class="w-weather-mini"><strong>${pick.wind}</strong>Vento</div>
+          <div class="w-weather-mini"><strong>${pick.humidity}</strong>Umidade</div>
+        </div>
+      </div>
+    `);
+    w.classList.add('w-weather');
+    return w;
+  }
+
+  // ── 4. STICKY NOTE ────────────────────────────────
+  let noteCount = 0;
+  function addNote(){
+    noteCount++;
+    const key = 'kgwidget_note_' + noteCount;
+    const saved = localStorage.getItem(key) || '';
+    const w = createWidgetShell(`
+      <div class="w-note-body">
+        <textarea class="w-note-textarea" placeholder="Digite sua nota..." rows="5">${saved}</textarea>
+        <div class="w-note-footer">
+          <span>nota ${noteCount}</span>
+          <span id="note-chars-${noteCount}">0 / ∞</span>
+        </div>
+      </div>
+    `);
+    w.classList.add('w-note');
+    const ta    = w.querySelector('textarea');
+    const chars = w.querySelector('#note-chars-' + noteCount);
+    ta.addEventListener('input', ()=>{
+      localStorage.setItem(key, ta.value);
+      chars.textContent = ta.value.length + ' chars';
+    });
+    ta.addEventListener('mousedown', e=> e.stopPropagation());
+    chars.textContent = saved.length + ' chars';
+    return w;
+  }
+
+  // ── 5. IMAGE ──────────────────────────────────────
+  // All images from the FILES object in the files app
+  const ALL_WIDGET_IMAGES = [
+    'imagens/ete.jpg','imagens/gatomusga.jpg','imagens/tralei.jpg',
+    'imagens/xaves.jpg','imagens/gatomolhado.jpg','imagens/kirbo.jpg',
+    'imagens/pictochat.jpg','imagens/elesestaodeolhoemnos.jpg','imagens/fofos.jpg',
+    'imagens/mikufdp.jpg','imagens/pclove.jpg','imagens/friaca.jpg',
+    'imagens/miranah.jpg','imagens/telpatia.jpg','imagens/memes.jpg',
+    'imagens/mimixi.jpg','imagens/trololo.jpg','imagens/xbox.jpg',
+    'imagens/foda.jpg','imagens/fofo.jpg','imagens/goxtosas.jpg',
+    'imagens/alieniga.jpg','imagens/bostil.jpg','imagens/migu.jpg',
+    'imagens/minionbunda.jpg','imagens/evangelico.jpg','imagens/abraseusolhos.jpg',
+    'imagens/dante-dmc.gif','imagens/supersaiajeans5.jpg'
+  ];
+  function addImage(){
+    const img_id = 'wimgel-' + Date.now();
+    // pick random start index
+    let imgIdx = Math.floor(Math.random() * ALL_WIDGET_IMAGES.length);
+    const sample = ALL_WIDGET_IMAGES[imgIdx];
+    const w = createWidgetShell(`
+      <div class="w-image-frame">
+        <img id="${img_id}" src="${sample}" alt="widget image">
+        <div class="w-image-hint">clique para trocar</div>
+      </div>
+    `);
+    w.classList.add('w-image');
+    const imgEl = w.querySelector('#' + img_id);
+    // click cycles to next image
+    w.addEventListener('click', e=>{
+      // don't trigger on the close button
+      if(e.target.closest('.kg-widget-close')) return;
+      imgIdx = (imgIdx + 1) % ALL_WIDGET_IMAGES.length;
+      imgEl.style.opacity = '0';
+      imgEl.style.transition = 'opacity .25s';
+      setTimeout(()=>{
+        imgEl.src = ALL_WIDGET_IMAGES[imgIdx];
+        imgEl.onload = ()=>{ imgEl.style.opacity = '1'; };
+        // fallback if already cached
+        if(imgEl.complete) imgEl.style.opacity = '1';
+      }, 200);
+    });
+    return w;
+  }
+
+  // ── 6. CALENDAR MINI ──────────────────────────────
+  function addCalendar(){
+    const w = createWidgetShell(`<div class="w-calendar-body" id="wcal-body-${Date.now()}"></div>`);
+    w.classList.add('w-calendar');
+    const body = w.querySelector('[id^="wcal-body"]');
+    const DAYS_SHORT = ['D','S','T','Q','Q','S','S'];
+    const MONTHS_NAME = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                         'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    let year = new Date().getFullYear(), month = new Date().getMonth();
+    const today = new Date();
+
+    function render(){
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month+1, 0).getDate();
+      const prevDays = new Date(year, month, 0).getDate();
+      let cells = '';
+      DAYS_SHORT.forEach(d => cells += `<div class="w-cal-day-name">${d}</div>`);
+      for(let i=0; i<firstDay; i++)
+        cells += `<div class="w-cal-cell other-month">${prevDays - firstDay + i + 1}</div>`;
+      for(let d=1; d<=daysInMonth; d++){
+        const isToday = d===today.getDate() && month===today.getMonth() && year===today.getFullYear();
+        cells += `<div class="w-cal-cell${isToday?' today':''}">${d}</div>`;
+      }
+      const rem = 7 - ((firstDay + daysInMonth) % 7);
+      if(rem < 7) for(let d=1; d<=rem; d++) cells += `<div class="w-cal-cell other-month">${d}</div>`;
+      body.innerHTML = `
+        <div class="w-cal-header">
+          <button class="w-cal-nav" data-dir="-1">‹</button>
+          <div class="w-cal-month">${MONTHS_NAME[month]} ${year}</div>
+          <button class="w-cal-nav" data-dir="1">›</button>
+        </div>
+        <div class="w-cal-grid">${cells}</div>
+      `;
+      body.querySelectorAll('[data-dir]').forEach(btn=>{
+        btn.addEventListener('click', e=>{
+          e.stopPropagation();
+          month += parseInt(btn.dataset.dir);
+          if(month > 11){ month=0; year++; }
+          if(month < 0){ month=11; year--; }
+          render();
+        });
+      });
+    }
+    render();
+    return w;
+  }
+
+  // ── 7. SYSTEM / PERF ──────────────────────────────
+  function addPerf(){
+    const id = 'wperf-' + Date.now();
+    const w = createWidgetShell(`
+      <div class="w-perf-body">
+        <div>
+          <div class="w-perf-row">
+            <div class="w-perf-label">CPU</div>
+            <div class="w-perf-val" id="${id}-cpu">0%</div>
+          </div>
+          <div class="w-perf-bar-wrap"><div class="w-perf-bar" id="${id}-cpu-b" style="width:0%"></div></div>
+        </div>
+        <div>
+          <div class="w-perf-row">
+            <div class="w-perf-label">RAM</div>
+            <div class="w-perf-val" id="${id}-ram" style="color:rgba(80,180,255,.9);text-shadow:0 0 8px rgba(80,180,255,.5)">0%</div>
+          </div>
+          <div class="w-perf-bar-wrap">
+            <div class="w-perf-bar" id="${id}-ram-b" style="width:0%;background:linear-gradient(90deg,rgba(80,180,255,.85),rgba(40,120,255,.6));box-shadow:0 0 8px rgba(80,180,255,.4)"></div>
+          </div>
+        </div>
+        <div>
+          <div class="w-perf-row">
+            <div class="w-perf-label">GPU (estimado)</div>
+            <div class="w-perf-val" id="${id}-gpu" style="color:rgba(220,80,255,.9);text-shadow:0 0 8px rgba(220,80,255,.5)">0%</div>
+          </div>
+          <div class="w-perf-bar-wrap">
+            <div class="w-perf-bar" id="${id}-gpu-b" style="width:0%;background:linear-gradient(90deg,rgba(220,80,255,.85),rgba(160,40,220,.6));box-shadow:0 0 8px rgba(220,80,255,.4)"></div>
+          </div>
+        </div>
+        <div class="w-perf-uptime" id="${id}-up">⏱ uptime: 0m</div>
+      </div>
+    `);
+    w.classList.add('w-perf');
+    const cpuEl  = document.getElementById(id+'-cpu');
+    const cpuBar = document.getElementById(id+'-cpu-b');
+    const ramEl  = document.getElementById(id+'-ram');
+    const ramBar = document.getElementById(id+'-ram-b');
+    const gpuEl  = document.getElementById(id+'-gpu');
+    const gpuBar = document.getElementById(id+'-gpu-b');
+    const upEl   = document.getElementById(id+'-up');
+    let cpuV=0, ramV=0, gpuV=0;
+    const start = Date.now();
+    function update(){
+      if(!document.body.contains(w)) return;
+      cpuV = Math.min(100, Math.max(0, cpuV + (Math.random()-0.48)*12));
+      ramV = Math.min(100, Math.max(20, ramV + (Math.random()-0.49)*6));
+      gpuV = Math.min(100, Math.max(0, gpuV + (Math.random()-0.47)*14));
+      cpuEl.textContent  = Math.round(cpuV) + '%';
+      cpuBar.style.width = Math.round(cpuV) + '%';
+      ramEl.textContent  = Math.round(ramV) + '%';
+      ramBar.style.width = Math.round(ramV) + '%';
+      gpuEl.textContent  = Math.round(gpuV) + '%';
+      gpuBar.style.width = Math.round(gpuV) + '%';
+      const mins = Math.floor((Date.now()-start)/60000);
+      const secs = Math.floor(((Date.now()-start)%60000)/1000);
+      upEl.textContent = '⏱ uptime: ' + (mins>0 ? mins+'m ':'')+secs+'s';
+      setTimeout(update, 1200);
+    }
+    cpuV = 20+Math.random()*40; ramV = 30+Math.random()*30; gpuV = 10+Math.random()*50;
+    update();
+    return w;
+  }
+
+  // ── Picker click handler ────────────────────────────
+  const BUILDERS = { clock:addClock, music:addMusic, weather:addWeather,
+                     note:addNote, image:addImage, calendar:addCalendar, perf:addPerf };
+
+  // registry: type → widget element (or null if closed)
+  const widgetRegistry = {};
+
+  // patch each builder to auto-register the returned widget
+  Object.keys(BUILDERS).forEach(type => {
+    const original = BUILDERS[type];
+    BUILDERS[type] = function(){
+      const w = original();
+      if(w){ widgetRegistry[type] = w; }
+      return w;
+    };
+  });
+
+  picker.querySelectorAll('.wp-tile').forEach(tile=>{
+    tile.addEventListener('click', e=>{
+      e.stopPropagation();
+      const type = tile.dataset.widget;
+      const existing = widgetRegistry[type];
+      if(existing && document.body.contains(existing)){
+        existing.remove();
+        widgetRegistry[type] = null;
+      } else {
+        if(BUILDERS[type]) BUILDERS[type]();
+      }
+      picker.classList.remove('open');
+    });
+  });
+
+})();
 </script>
 </body>
 </html>
