@@ -8985,19 +8985,23 @@ const GRID_MARGIN_RIGHT = 16;
         testRect.right = x + rect.width;
         testRect.bottom = y + rect.height;
 
-        const collision = icons.some(other=>{
-          if(other === icon) return false;
-          const r = other.getBoundingClientRect();
-          return rectsOverlap(
-            {
-              left: testRect.left + desktopRect.left,
-              top: testRect.top + desktopRect.top,
-              right: testRect.right + desktopRect.left,
-              bottom: testRect.bottom + desktopRect.top
-            },
-            r
-          );
-        });
+        const absTestRect = {
+          left:   testRect.left   + desktopRect.left,
+          top:    testRect.top    + desktopRect.top,
+          right:  testRect.right  + desktopRect.left,
+          bottom: testRect.bottom + desktopRect.top
+        };
+
+        const collision =
+          // colisão com outros ícones
+          icons.some(other=>{
+            if(other === icon) return false;
+            return rectsOverlap(absTestRect, other.getBoundingClientRect());
+          }) ||
+          // colisão com widgets
+          [...document.querySelectorAll('.kg-widget')].some(widget=>{
+            return rectsOverlap(absTestRect, widget.getBoundingClientRect());
+          });
 
         if(!collision){
           snapped.x = x;
@@ -9372,21 +9376,127 @@ window.addEventListener("load", () => {
 
   // ── Widget drag ────────────────────────────────────
   const wDrag = { active:false, el:null, ox:0, oy:0 };
+  const W_GAP = 8; // minimum pixel gap between widgets
 
+  /* ── utils ── */
+  function _wTaskH(){
+    return parseInt(getComputedStyle(document.documentElement)
+      .getPropertyValue('--taskbar-h')) || 48;
+  }
+  function _wRect(w){
+    return { l: w.offsetLeft, t: w.offsetTop,
+             r: w.offsetLeft + w.offsetWidth,
+             b: w.offsetTop  + w.offsetHeight };
+  }
+  function _wClamp(w){
+    const th = _wTaskH();
+    w.style.left = Math.max(0, Math.min(w.offsetLeft, window.innerWidth  - w.offsetWidth))  + 'px';
+    w.style.top  = Math.max(0, Math.min(w.offsetTop,  window.innerHeight - th - w.offsetHeight)) + 'px';
+  }
+
+  /*
+   * Scan the desktop in a grid to find the first free spot for a new widget.
+   * Falls back to resolveWidgetCollisions if no perfectly free cell is found.
+   */
+  function _findFreeSpot(w){
+    const th  = _wTaskH();
+    const ww  = w.offsetWidth  || 180;
+    const wh  = w.offsetHeight || 120;
+    const maxX = window.innerWidth  - ww  - W_GAP;
+    const maxY = window.innerHeight - th  - wh - W_GAP;
+    const step = 20; // grid resolution (px)
+    for(let y = W_GAP; y <= maxY; y += step){
+      for(let x = W_GAP; x <= maxX; x += step){
+        if(!_wouldOverlap(w, x, y)){
+          w.style.left = x + 'px';
+          w.style.top  = y + 'px';
+          return;
+        }
+      }
+    }
+    // No perfectly free cell — use push-out as fallback
+    resolveWidgetCollisions(w);
+  }
+
+  /* Returns true if placing `el` at pixel (x, y) would overlap any other widget or desktop icon */
+  function _wouldOverlap(el, x, y){
+    const ew = el.offsetWidth, eh = el.offsetHeight;
+    const all = [
+      ...document.querySelectorAll('.kg-widget'),
+      ...document.querySelectorAll('.desktop-icon')
+    ];
+    for(const o of all){
+      if(o === el) continue;
+      const b = _wRect(o);
+      if(x < b.r + W_GAP && x + ew > b.l - W_GAP &&
+         y < b.b + W_GAP && y + eh > b.t - W_GAP) return true;
+    }
+    return false;
+  }
+
+  /*
+   * Push-out resolver — runs on spawn and as a safety net on drop.
+   * Iteratively nudges `moved` on the shortest overlap axis until free.
+   */
+  function resolveWidgetCollisions(moved){
+    const th = _wTaskH();
+    const others = [
+      ...document.querySelectorAll('.kg-widget'),
+      ...document.querySelectorAll('.desktop-icon')
+    ].filter(w => w !== moved);
+    for(let i = 0; i < 40; i++){
+      let clean = true;
+      for(const o of others){
+        const a = _wRect(moved), b = _wRect(o);
+        const penX = Math.min(a.r, b.r) - Math.max(a.l, b.l) + W_GAP;
+        const penY = Math.min(a.b, b.b) - Math.max(a.t, b.t) + W_GAP;
+        if(penX <= 0 || penY <= 0) continue;
+        clean = false;
+        if(penX <= penY){
+          const dir = (a.l + a.r) / 2 >= (b.l + b.r) / 2 ? 1 : -1;
+          moved.style.left = Math.max(0,
+            Math.min(moved.offsetLeft + penX * dir,
+                     window.innerWidth - moved.offsetWidth)) + 'px';
+        } else {
+          const dir = (a.t + a.b) / 2 >= (b.t + b.b) / 2 ? 1 : -1;
+          moved.style.top = Math.max(0,
+            Math.min(moved.offsetTop + penY * dir,
+                     window.innerHeight - th - moved.offsetHeight)) + 'px';
+        }
+      }
+      if(clean) break;
+    }
+    _wClamp(moved);
+  }
+
+  /*
+   * Real-time collision blocking during drag.
+   * Strategy: try full move → try X-only → try Y-only → stay put.
+   * This creates a natural "slide along the edge" feeling.
+   */
   document.addEventListener('mousemove', e=>{
     if(!wDrag.active || !wDrag.el) return;
-    const taskH = parseInt(getComputedStyle(document.documentElement)
-      .getPropertyValue('--taskbar-h')) || 48;
-    let nx = e.clientX - wDrag.ox;
-    let ny = e.clientY - wDrag.oy;
-    nx = Math.max(0, Math.min(nx, window.innerWidth - wDrag.el.offsetWidth));
-    ny = Math.max(0, Math.min(ny, window.innerHeight - taskH - wDrag.el.offsetHeight));
-    wDrag.el.style.left = nx + 'px';
-    wDrag.el.style.top  = ny + 'px';
+    const el = wDrag.el;
+    const th = _wTaskH();
+    let nx = Math.max(0, Math.min(e.clientX - wDrag.ox, window.innerWidth  - el.offsetWidth));
+    let ny = Math.max(0, Math.min(e.clientY - wDrag.oy, window.innerHeight - th - el.offsetHeight));
+    const cx = el.offsetLeft, cy = el.offsetTop;
+
+    if(!_wouldOverlap(el, nx, ny)){
+      el.style.left = nx + 'px';
+      el.style.top  = ny + 'px';
+    } else if(!_wouldOverlap(el, nx, cy)){
+      el.style.left = nx + 'px';          // slide horizontally
+    } else if(!_wouldOverlap(el, cx, ny)){
+      el.style.top  = ny + 'px';          // slide vertically
+    }
+    // else: fully blocked — widget stays in place
   });
+
   document.addEventListener('mouseup', ()=>{
     if(wDrag.active && wDrag.el){
       wDrag.el.classList.remove('widget-dragging');
+      resolveWidgetCollisions(wDrag.el); // safety pass after drop
     }
     wDrag.active = false;
     wDrag.el = null;
@@ -9428,6 +9538,8 @@ window.addEventListener("load", () => {
     w.querySelector('[data-close]').addEventListener('click', ()=> w.remove());
     makeWidgetDraggable(w, w.querySelector('[data-drag]'));
     desktop.appendChild(w);
+    // double rAF: first frame adds element, second frame has real offsetWidth/offsetHeight
+    requestAnimationFrame(()=> requestAnimationFrame(()=> _findFreeSpot(w)));
     return w;
   }
 
